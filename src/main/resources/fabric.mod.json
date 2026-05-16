@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "trevoraddons",
+  "version": "${version}",
+  "name": "TrevorAddons",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/trevoraddons/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "cc.rayen.trevoraddons.client.TrevorAddonsDataGenerator"
+    ],
+    "client": [
+      "cc.rayen.trevoraddons.client.TrevorAddonsClient"
+    ],
+    "main": [
+      "cc.rayen.trevoraddons.TrevorAddons"
+    ]
+  },
+  "mixins": [
+    "trevoraddons.mixins.json",
+    {
+      "config": "trevoraddons.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
