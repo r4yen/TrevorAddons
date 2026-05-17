@@ -1,6 +1,6 @@
 # TrevorAddons
 
-TrevorAddons is a client-side Fabric mod for Hypixel SkyBlock Trevor hunting.
+TrevorAddons is a client-side Fabric mod for SkyBlock Trevor hunting.
 It highlights Trevor animals with ESP boxes and optional tracers, plus an in-game settings screen.
 
 ## Features
