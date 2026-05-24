@@ -523,17 +523,18 @@ public class TrevorPresetEditorScreen extends Screen {
                     }
 
                     List<Double> lives = rule.healthValues;
-                    for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
-                        TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
-                        lifeRow.title = formatLife(lives.get(lifeIndex));
-                        lifeRow.subtitle = "";
-                        lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
-                        lifeRow.editable = preset.editable;
-                        lifeRow.canDelete = preset.editable;
-                        lifeRow.depth = 2;
-                        treeRows.add(lifeRow);
-                        y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
-                    }
+                for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
+                    TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
+                    lifeRow.title = formatLife(lives.get(lifeIndex));
+                    lifeRow.subtitle = "";
+                    lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
+                    lifeRow.editable = preset.editable;
+                    lifeRow.canAdd = false;
+                    lifeRow.canDelete = preset.editable;
+                    lifeRow.depth = 2;
+                    treeRows.add(lifeRow);
+                    y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
+                }
                     y += 3;
                 }
                 y += 2;
@@ -593,7 +594,9 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
         }
 
-        drawSquareSymbolButton(context, row.addRect, "+", row.canAdd, mouseX, mouseY, 0xFF324153, 0xFF222A34);
+        if (row.kind != TreeKind.LIFE && row.canAdd) {
+            drawSquareSymbolButton(context, row.addRect, "+", true, mouseX, mouseY, 0xFF324153, 0xFF222A34);
+        }
         drawSquareSymbolButton(context, row.deleteRect, "-", row.canDelete, mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
 
         return row.rect.h + 3;
@@ -816,15 +819,23 @@ public class TrevorPresetEditorScreen extends Screen {
             statusMessage = "Select a mob first.";
             return;
         }
-        if (!containsValue(rule.healthValues, Double.NaN)) {
-            rule.healthValues.add(Double.NaN);
+        double valueToAdd = Double.NaN;
+        if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
+            valueToAdd = rule.healthValues.get(selectedLifeIndex);
+        } else if (!rule.healthValues.isEmpty()) {
+            valueToAdd = rule.healthValues.get(rule.healthValues.size() - 1);
+        } else {
+            valueToAdd = 100.0;
+        }
+        if (!containsValue(rule.healthValues, valueToAdd)) {
+            rule.healthValues.add(valueToAdd);
             sortValues(rule.healthValues);
         }
         selectedLifeIndex = rule.healthValues.size() - 1;
         selectionKind = SelectionKind.LIFE;
         TrevorAddonsClient.CONFIG.save();
         syncInputFromSelection();
-        statusMessage = "Added All.";
+        statusMessage = "Life added.";
     }
 
     private void applyMobType() {
