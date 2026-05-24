@@ -774,6 +774,7 @@ public class TrevorPresetEditorScreen extends Screen {
 
     private void addPreset() {
         TrevorConfig.Preset copy = TrevorAddonsClient.CONFIG.duplicatePreset(TrevorConfig.DEFAULT_PRESET_ID);
+        copy.entities = new ArrayList<>();
         TrevorAddonsClient.CONFIG.save();
         selectedPresetId = copy.id;
         selectionKind = SelectionKind.PRESET;

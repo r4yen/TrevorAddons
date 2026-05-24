@@ -184,9 +184,11 @@ public final class TrevorConfig {
             preset.entities = new ArrayList<>();
         }
 
-        for (EntityRule defaultRule : DEFAULT_ENTITY_RULES) {
-            if (preset.getRule(defaultRule.id) == null) {
-                preset.entities.add(defaultRule.copy());
+        if (DEFAULT_PRESET_ID.equals(preset.id)) {
+            for (EntityRule defaultRule : DEFAULT_ENTITY_RULES) {
+                if (preset.getRule(defaultRule.id) == null) {
+                    preset.entities.add(defaultRule.copy());
+                }
             }
         }
 
