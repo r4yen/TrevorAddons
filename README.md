@@ -16,8 +16,6 @@ It highlights Trevor animals with ESP boxes and optional tracers, plus an in-gam
 ## Commands
 
 - `/trevoraddons` or `/ta`: Open settings
-- `/trevoraddons settings` or `/ta settings`: Open settings
-- `/trevoraddons debug [range]` or `/ta debug [range]`: Show debug info for the looked-at entity
 
 ## Compatibility
 
