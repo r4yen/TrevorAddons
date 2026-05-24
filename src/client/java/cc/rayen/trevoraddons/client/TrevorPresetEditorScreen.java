@@ -60,12 +60,8 @@ public class TrevorPresetEditorScreen extends Screen {
     private Rect presetsToggleRect = Rect.empty();
     private Rect inputRect = Rect.empty();
     private Rect mobTypeRect = Rect.empty();
-    private Rect mobTypeSetRect = Rect.empty();
-    private Rect setRect = Rect.empty();
     private Rect addRect = Rect.empty();
-    private Rect wildcardRect = Rect.empty();
     private Rect deleteRect = Rect.empty();
-    private Rect useRect = Rect.empty();
 
     private boolean visualsExpanded = true;
     private boolean presetsExpanded = true;
@@ -182,6 +178,58 @@ public class TrevorPresetEditorScreen extends Screen {
             close();
             return true;
         }
+        if (embedded) {
+            if (presetsAddRect.contains(mouseX, mouseY)) {
+                addPreset();
+                return true;
+            }
+            if (presetsExpanded) {
+                if (mobTypeRect.contains(mouseX, mouseY)) {
+                    mobTypeFocused = true;
+                    inputFocused = false;
+                    presetNameFocused = false;
+                    return true;
+                }
+                if (inputRect.contains(mouseX, mouseY)) {
+                    inputFocused = true;
+                    mobTypeFocused = false;
+                    presetNameFocused = false;
+                    return true;
+                }
+                if (addRect.contains(mouseX, mouseY)) {
+                    applyInput(true);
+                    return true;
+                }
+                if (deleteRect.contains(mouseX, mouseY)) {
+                    deleteSelection();
+                    return true;
+                }
+                for (TreeRow row : treeRows) {
+                    if (!row.rect.contains(mouseX, mouseY)) continue;
+                    if (row.addRect.contains(mouseX, mouseY)) {
+                        handleRowPlus(row);
+                        return true;
+                    }
+                    if (row.deleteRect.contains(mouseX, mouseY)) {
+                        handleRowDelete(row);
+                        return true;
+                    }
+                    if (doubleClick) {
+                        if (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY) {
+                            toggleRow(row);
+                        }
+                        return true;
+                    }
+                    selectRow(row);
+                    inputFocused = false;
+                    mobTypeFocused = false;
+                    presetNameFocused = false;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         if (visualsToggleRect.contains(mouseX, mouseY)) {
             visualsExpanded = !visualsExpanded;
             return true;
@@ -211,37 +259,17 @@ public class TrevorPresetEditorScreen extends Screen {
                 mobTypeFocused = false;
                 return true;
             }
-            if (mobTypeSetRect.contains(mouseX, mouseY)) {
-                applyMobType();
-                return true;
-            }
-            if (setRect.contains(mouseX, mouseY)) {
-                applyInput(false);
-                return true;
-            }
             if (addRect.contains(mouseX, mouseY)) {
                 applyInput(true);
-                return true;
-            }
-            if (wildcardRect.contains(mouseX, mouseY)) {
-                applyWildcard();
                 return true;
             }
             if (deleteRect.contains(mouseX, mouseY)) {
                 deleteSelection();
                 return true;
             }
-            if (useRect.contains(mouseX, mouseY)) {
-                useSelectedPreset();
-                return true;
-            }
 
             for (TreeRow row : treeRows) {
                 if (!row.rect.contains(mouseX, mouseY)) continue;
-                if (row.toggleRect.contains(mouseX, mouseY)) {
-                    toggleRow(row);
-                    return true;
-                }
                 if (row.addRect.contains(mouseX, mouseY)) {
                     handleRowPlus(row);
                     return true;
@@ -537,17 +565,11 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(row.rect.x, row.rect.y, row.rect.x + row.rect.w, row.rect.y + 1, 0xFF10151B);
         context.fill(row.rect.x, row.rect.y + row.rect.h - 1, row.rect.x + row.rect.w, row.rect.y + row.rect.h, 0xFF10151B);
 
-        row.toggleRect = new Rect(row.rect.x + 6, row.rect.y + 4, 16, row.rect.h - 8);
-        row.addRect = new Rect(row.rect.x + row.rect.w - 34, row.rect.y + 3, 14, row.rect.h - 6);
-        row.deleteRect = new Rect(row.rect.x + row.rect.w - 18, row.rect.y + 3, 14, row.rect.h - 6);
-        row.useRect = new Rect(row.rect.x + row.rect.w - 54, row.rect.y + 3, 18, row.rect.h - 6);
-
-        if (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY) {
-            context.drawText(mc().textRenderer, Text.literal(row.expanded ? "v" : ">"), row.toggleRect.x + 1, row.toggleRect.y + 3, 0xFFEAF0F7, false);
-        }
+        row.addRect = new Rect(row.rect.x + row.rect.w - 20, row.rect.y + 3, 16, row.rect.h - 6);
+        row.deleteRect = new Rect(row.rect.x + row.rect.w - 40, row.rect.y + 3, 16, row.rect.h - 6);
 
         int titleX = row.rect.x + 28;
-        int titleW = row.rect.w - 112;
+        int titleW = row.rect.w - 66;
         if (row.kind == TreeKind.LIFE) {
             context.drawText(mc().textRenderer, Text.literal("❤"), row.rect.x + 28, row.rect.y + 4, 0xFFE35757, false);
             if (row.selected && inputFocused) {
@@ -571,29 +593,11 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
         }
 
-        if (row.kind == TreeKind.PRESET) {
-            if (row.active) {
-                drawChip(context, row.useRect, "Active", 0xFF2B3B2E);
-            } else {
-                drawSmallButton(context, row.useRect, "Use", mouseX, mouseY, 0xFF324153, 0xFF222A34);
-            }
-            if (row.canAdd) {
-                drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
-            }
-            if (row.canDelete) {
-                drawTrashButton(context, row.deleteRect, mouseX, mouseY);
-            }
-        } else if (row.kind == TreeKind.ENTITY) {
-            if (row.canAdd) {
-                drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
-            }
-            if (row.canDelete) {
-                drawTrashButton(context, row.deleteRect, mouseX, mouseY);
-            }
-        } else if (row.kind == TreeKind.LIFE) {
-            if (row.canDelete) {
-                drawTrashButton(context, row.deleteRect, mouseX, mouseY);
-            }
+        if (row.canAdd) {
+            drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
+        }
+        if (row.canDelete) {
+            drawSmallButton(context, row.deleteRect, "-", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
         }
 
         return row.rect.h + 3;
@@ -607,11 +611,8 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(footerX, footerY, footerX + footerW, footerY + footerRect.h, 0xFF171C24);
         context.fill(footerX, footerY, footerX + footerW, footerY + 1, 0xFF10151B);
         if (embedded) {
-            setRect = Rect.empty();
             addRect = Rect.empty();
-            wildcardRect = Rect.empty();
             deleteRect = Rect.empty();
-            useRect = Rect.empty();
 
             Rect editorRect = new Rect(footerX + 12, footerY + 16, footerW - 24, 20);
             String label;
@@ -636,7 +637,6 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
             mobTypeRect = selectionKind == SelectionKind.ENTITY ? editorRect : Rect.empty();
             inputRect = selectionKind == SelectionKind.LIFE ? editorRect : Rect.empty();
-            mobTypeSetRect = Rect.empty();
             return;
         }
 
@@ -650,9 +650,6 @@ public class TrevorPresetEditorScreen extends Screen {
         context.drawText(mc().textRenderer, Text.literal("Mob Type"), footerX + 12, footerY + 34, 0xFFD5DBE5, false);
         context.fill(mobTypeRect.x, mobTypeRect.y, mobTypeRect.x + mobTypeRect.w, mobTypeRect.y + mobTypeRect.h, mobFocused ? 0xFF2D3745 : 0xFF222A34);
         context.drawText(mc().textRenderer, Text.literal(trim(mobTypeInput.isEmpty() ? "Enter entity id" : mobTypeInput, mobTypeRect.w - 20)), mobTypeRect.x + 10, mobTypeRect.y + 6, mobTypeInput.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
-        mobTypeSetRect = new Rect(footerX + footerW - 68, footerY + 38, 56, 20);
-        drawSmallButton(context, mobTypeSetRect, "Set", mouseX, mouseY, accentMuted, accentDark);
-
         inputRect = new Rect(footerX + 12, footerY + 66, footerW - 24, 20);
         boolean focused = inputFocused || inputRect.contains(mouseX, mouseY);
         context.drawText(mc().textRenderer, Text.literal("Lives"), footerX + 12, footerY + 62, 0xFFD5DBE5, false);
@@ -660,21 +657,11 @@ public class TrevorPresetEditorScreen extends Screen {
         String placeholder = selectionKind == SelectionKind.LIFE ? "Type a value or *" : "Type values separated by commas, or *";
         context.drawText(mc().textRenderer, Text.literal(trim(inputText.isEmpty() ? placeholder : inputText, inputRect.w - 20)), inputRect.x + 10, inputRect.y + 6, inputText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
 
-        setRect = new Rect(footerX + 12, footerY + 92, 46, 18);
-        addRect = new Rect(footerX + 62, footerY + 92, 46, 18);
-        wildcardRect = new Rect(footerX + 112, footerY + 92, 28, 18);
-        deleteRect = new Rect(footerX + 144, footerY + 92, 46, 18);
-        useRect = new Rect(footerX + footerW - 66, footerY + 92, 54, 18);
+        addRect = new Rect(footerX + 12, footerY + 92, 18, 18);
+        deleteRect = new Rect(footerX + 36, footerY + 92, 18, 18);
 
-        drawSmallButton(context, setRect, "Set", mouseX, mouseY, accentMuted, accentDark);
-        drawSmallButton(context, addRect, "Add", mouseX, mouseY, accentMuted, accentDark);
-        drawSmallButton(context, wildcardRect, "*", mouseX, mouseY, accentMuted, accentDark);
-        drawSmallButton(context, deleteRect, "Del", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
-        if (selectionKind == SelectionKind.PRESET) {
-            drawSmallButton(context, useRect, "Use", mouseX, mouseY, accentMuted, accentDark);
-        } else {
-            drawSmallButton(context, useRect, "Reset", mouseX, mouseY, accentMuted, accentDark);
-        }
+        drawSmallButton(context, addRect, "+", mouseX, mouseY, accentMuted, accentDark);
+        drawSmallButton(context, deleteRect, "-", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
     }
 
     private void drawSectionHeader(DrawContext context, Rect rect, String label, boolean expanded, int mouseX, int mouseY, int accentColor) {
@@ -1516,10 +1503,8 @@ public class TrevorPresetEditorScreen extends Screen {
         private boolean canDelete;
         private boolean canUse;
         private Rect rect = Rect.empty();
-        private Rect toggleRect = Rect.empty();
         private Rect addRect = Rect.empty();
         private Rect deleteRect = Rect.empty();
-        private Rect useRect = Rect.empty();
 
         private TreeRow(TreeKind kind, int presetIndex, int entityIndex, int lifeIndex, int x, int y, int w, int h) {
             this.kind = kind;
