@@ -135,10 +135,6 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(panelLeft + 1, panelTop + 1, panelRight - 1, panelBottom - 1, 0xFF11151B);
         context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
 
-        context.drawText(mc().textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
-        context.drawText(mc().textRenderer, Text.literal(embedded ? "Preset editor" : "Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
-        drawChip(context, activePresetChipRect, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), activePresetChipRect.w - 16), accentMuted);
-
         if (embedded) {
             drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
             drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
@@ -147,6 +143,9 @@ public class TrevorPresetEditorScreen extends Screen {
                 drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
             }
         } else {
+            context.drawText(mc().textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
+            context.drawText(mc().textRenderer, Text.literal("Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
+            drawChip(context, activePresetChipRect, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), activePresetChipRect.w - 16), accentMuted);
             drawSectionHeader(context, visualsHeaderRect, "Visuals", visualsExpanded, mouseX, mouseY, accentColor);
             if (visualsExpanded) {
                 drawVisualsSection(context, mouseX, mouseY, accentColor);
@@ -425,7 +424,7 @@ public class TrevorPresetEditorScreen extends Screen {
         for (int presetIndex = 0; presetIndex < presets.size(); presetIndex++) {
             TrevorConfig.Preset preset = presets.get(presetIndex);
             boolean presetExpanded = isExpandedPreset(preset.id) || preset.id.equals(selectedPresetId);
-            TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX, y, bodyW, 26);
+            TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 26);
             presetRow.title = preset.name;
             presetRow.subtitle = preset.id.equals(TrevorConfig.DEFAULT_PRESET_ID) ? "Default preset" : "Custom preset";
             presetRow.expanded = presetExpanded;
@@ -437,17 +436,17 @@ public class TrevorPresetEditorScreen extends Screen {
             presetRow.canUse = !preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
             presetRow.depth = 0;
             treeRows.add(presetRow);
-            y += drawTreeRow(context, presetRow, mouseX, mouseY, accentColor, bodyX, bodyW);
+            y += drawTreeRow(context, presetRow, mouseX, mouseY, accentColor, bodyX + 14, bodyW - 14);
 
             if (!presetExpanded) {
-                y += 4;
+                y += 2;
                 continue;
             }
 
             for (int entityIndex = 0; entityIndex < preset.entities.size(); entityIndex++) {
                 TrevorConfig.EntityRule rule = preset.entities.get(entityIndex);
                 boolean entityExpanded = isExpandedEntity(preset.id, entityIndex);
-                TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 18, y, bodyW - 18, 24);
+                TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 34, y, bodyW - 34, 24);
                 entityRow.title = "Mob " + (entityIndex + 1);
                 entityRow.subtitle = rule.name;
                 entityRow.expanded = entityExpanded;
@@ -457,7 +456,7 @@ public class TrevorPresetEditorScreen extends Screen {
                 entityRow.canDelete = preset.editable && preset.entities.size() > 1;
                 entityRow.depth = 1;
                 treeRows.add(entityRow);
-                y += drawTreeRow(context, entityRow, mouseX, mouseY, accentColor, bodyX + 18, bodyW - 18);
+                y += drawTreeRow(context, entityRow, mouseX, mouseY, accentColor, bodyX + 34, bodyW - 34);
 
                 if (!entityExpanded) {
                     y += 3;
@@ -466,7 +465,7 @@ public class TrevorPresetEditorScreen extends Screen {
 
                 List<Double> lives = rule.healthValues;
                 for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
-                    TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 36, y, bodyW - 36, 20);
+                    TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
                     lifeRow.title = formatLife(lives.get(lifeIndex));
                     lifeRow.subtitle = "";
                     lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
@@ -474,11 +473,11 @@ public class TrevorPresetEditorScreen extends Screen {
                     lifeRow.canDelete = preset.editable;
                     lifeRow.depth = 2;
                     treeRows.add(lifeRow);
-                    y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 36, bodyW - 36);
+                    y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
                 }
                 y += 3;
             }
-            y += 4;
+            y += 2;
         }
 
         treeContentHeight = Math.max(0, y - bodyY + treeScroll);
@@ -514,8 +513,13 @@ public class TrevorPresetEditorScreen extends Screen {
         }
 
         int titleX = row.rect.x + 28;
-        int titleW = row.rect.w - 90;
-        context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+        int titleW = row.rect.w - 112;
+        if (row.kind == TreeKind.LIFE) {
+            context.drawText(mc().textRenderer, Text.literal("❤"), row.rect.x + 28, row.rect.y + 4, 0xFFE35757, false);
+            context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW - 14)), row.rect.x + 40, row.rect.y + 6, 0xFFEAF0F7, false);
+        } else {
+            context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+        }
         if (!row.subtitle.isEmpty()) {
             context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
         }
@@ -723,7 +727,7 @@ public class TrevorPresetEditorScreen extends Screen {
         selectionKind = SelectionKind.LIFE;
         TrevorAddonsClient.CONFIG.save();
         syncInputFromSelection();
-        statusMessage = "Added *.";
+        statusMessage = "Added All.";
     }
 
     private void applyMobType() {
@@ -821,7 +825,7 @@ public class TrevorPresetEditorScreen extends Screen {
             sortValues(rule.healthValues);
             TrevorAddonsClient.CONFIG.save();
             syncInputFromSelection();
-            statusMessage = "Life set to *.";
+            statusMessage = "Life set to All.";
             return;
         }
         if (!containsValue(rule.healthValues, Double.NaN)) {
@@ -829,7 +833,7 @@ public class TrevorPresetEditorScreen extends Screen {
             sortValues(rule.healthValues);
             TrevorAddonsClient.CONFIG.save();
             syncInputFromSelection();
-            statusMessage = "* added.";
+            statusMessage = "All added.";
         }
     }
 
@@ -1006,7 +1010,7 @@ public class TrevorPresetEditorScreen extends Screen {
             return "Unknown";
         }
         if (TrevorConfig.HORSE_FAMILY_KEY.equals(key)) {
-            return "Horse Family";
+            return "All";
         }
         int colon = key.indexOf(':');
         String path = colon >= 0 ? key.substring(colon + 1) : key;
@@ -1108,11 +1112,19 @@ public class TrevorPresetEditorScreen extends Screen {
         visualsHeaderRect = visualsToggleRect;
         visualsBodyRect = new Rect(panelLeft + 12, panelTop + 76, WINDOW_W - 24, 142);
 
-        presetsToggleRect = new Rect(panelLeft + 12, panelTop + 226, WINDOW_W - 24, 22);
-        presetsHeaderRect = presetsToggleRect;
-        presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 229, 16, 16);
-        presetsBodyRect = new Rect(panelLeft + 12, panelTop + 250, WINDOW_W - 24, 136);
-        footerRect = new Rect(panelLeft + 12, panelTop + 390, WINDOW_W - 24, 112);
+        if (embedded) {
+            presetsToggleRect = new Rect(panelLeft + 12, panelTop + 12, WINDOW_W - 24, 22);
+            presetsHeaderRect = presetsToggleRect;
+            presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 15, 16, 16);
+            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 36, WINDOW_W - 24, 314);
+            footerRect = new Rect(panelLeft + 12, panelTop + 354, WINDOW_W - 24, 64);
+        } else {
+            presetsToggleRect = new Rect(panelLeft + 12, panelTop + 226, WINDOW_W - 24, 22);
+            presetsHeaderRect = presetsToggleRect;
+            presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 229, 16, 16);
+            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 250, WINDOW_W - 24, 136);
+            footerRect = new Rect(panelLeft + 12, panelTop + 390, WINDOW_W - 24, 112);
+        }
 
         espToggleRect = new Rect(visualsBodyRect.x + 12, visualsBodyRect.y + 14, 210, 24);
         tracerToggleRect = new Rect(visualsBodyRect.x + 12, visualsBodyRect.y + 42, 210, 24);
@@ -1193,7 +1205,7 @@ public class TrevorPresetEditorScreen extends Screen {
         String[] parts = input.split("[,\\s]+");
         for (String part : parts) {
             if (part.isBlank()) continue;
-            if ("*".equals(part.trim())) {
+            if ("*".equals(part.trim()) || "All".equalsIgnoreCase(part.trim())) {
                 values.add(Double.NaN);
                 continue;
             }
@@ -1245,7 +1257,7 @@ public class TrevorPresetEditorScreen extends Screen {
 
     private static String formatLife(Double value) {
         if (value == null) return "";
-        if (Double.isNaN(value)) return "*";
+        if (Double.isNaN(value)) return "All";
         double rounded = Math.rint(value);
         if (Math.abs(value - rounded) < 0.0001d) {
             return String.format(Locale.ROOT, "%.0f", rounded);
