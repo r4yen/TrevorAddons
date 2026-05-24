@@ -61,6 +61,7 @@ public final class TrevorCommand {
             source.sendFeedback(Text.literal("No entity targeted in " + range + " blocks.").formatted(Formatting.RED));
             return 0;
         }
+        String activePresetName = TrevorAddonsClient.CONFIG != null ? TrevorAddonsClient.CONFIG.getActivePresetName() : "Default";
         boolean trevorMatch = TrevorRuntime.shouldMarkTrevorAnimal(entity);
         boolean espEnabled = TrevorAddonsClient.CONFIG != null && TrevorAddonsClient.CONFIG.markTrevorAnimals;
         boolean shouldBeMarkedNow = trevorMatch && espEnabled;
@@ -86,7 +87,8 @@ public final class TrevorCommand {
                 .append("Touching Water: ").append(entity.isTouchingWater()).append('\n')
                 .append("Submerged in Water: ").append(entity.isSubmergedInWater()).append('\n')
                 .append("In Lava: ").append(entity.isInLava()).append('\n')
-                .append("Trevor Match (Max Health): ").append(trevorMatch).append('\n')
+                .append("Active Preset: ").append(activePresetName).append('\n')
+                .append("Trevor Match: ").append(trevorMatch).append('\n')
                 .append("ESP Enabled (Settings): ").append(espEnabled).append('\n')
                 .append("Should Be Marked: ").append(shouldBeMarkedNow).append('\n')
                 .append("Velocity: ").append(fmt(entity.getVelocity().x)).append(", ").append(fmt(entity.getVelocity().y)).append(", ").append(fmt(entity.getVelocity().z)).append('\n')

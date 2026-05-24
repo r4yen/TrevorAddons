@@ -16,6 +16,7 @@ public class TrevorSettingsScreen extends Screen {
     private Rect thicknessTrackRect = Rect.empty();
     private Rect svRect = Rect.empty();
     private Rect hueRect = Rect.empty();
+    private Rect entityPresetRect = Rect.empty();
     private Rect doneRect = Rect.empty();
 
     private boolean draggingThickness = false;
@@ -57,6 +58,9 @@ public class TrevorSettingsScreen extends Screen {
 
         context.drawText(this.textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 12, panelTop + 10, accentColor, false);
         context.drawText(this.textRenderer, Text.literal("Settings"), panelLeft + 12, panelTop + 24, 0xFF9FA7B3, false);
+        context.drawText(this.textRenderer,
+                Text.literal("Active preset: " + TrevorAddonsClient.CONFIG.getActivePresetName()),
+                panelLeft + 12, panelTop + 38, 0xFF9FA7B3, false);
 
         drawToggle(context, espToggleRect, "Trevor Animals ESP", TrevorAddonsClient.CONFIG.markTrevorAnimals, mouseX, mouseY);
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
@@ -72,7 +76,8 @@ public class TrevorSettingsScreen extends Screen {
         context.fill(svRect.x + svRect.w + 31, svRect.y + 11, svRect.x + svRect.w + 93, svRect.y + 33, previewColor);
         context.drawText(this.textRenderer, Text.literal(hexColor()), svRect.x + svRect.w + 30, svRect.y + 40, 0xFFC4CCD9, false);
 
-        drawDoneButton(context, mouseX, mouseY, accentMuted, accentDark);
+        drawActionButton(context, entityPresetRect, "Entity Presets", mouseX, mouseY, accentMuted, accentDark);
+        drawActionButton(context, doneRect, "Done", mouseX, mouseY, accentMuted, accentDark);
 
         super.render(context, mouseX, mouseY, deltaTicks);
     }
@@ -109,6 +114,10 @@ public class TrevorSettingsScreen extends Screen {
             draggingHue = true;
             setDragging(true);
             updateHueFromMouse(mouseY);
+            return true;
+        }
+        if (entityPresetRect.contains(mouseX, mouseY)) {
+            this.client.setScreen(new TrevorEntityPresetsScreen(this));
             return true;
         }
         if (doneRect.contains(mouseX, mouseY)) {
@@ -222,10 +231,10 @@ public class TrevorSettingsScreen extends Screen {
         context.fill(hueRect.x - 1, hueY, hueRect.x + hueRect.w + 1, hueY + 1, 0xFF000000);
     }
 
-    private void drawDoneButton(DrawContext context, int mouseX, int mouseY, int hoverColor, int baseColor) {
-        boolean hover = doneRect.contains(mouseX, mouseY);
-        context.fill(doneRect.x, doneRect.y, doneRect.x + doneRect.w, doneRect.y + doneRect.h, hover ? hoverColor : baseColor);
-        context.drawText(this.textRenderer, Text.literal("Done"), doneRect.x + (doneRect.w / 2) - 14, doneRect.y + 6, 0xFFFFFFFF, false);
+    private void drawActionButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY, int hoverColor, int baseColor) {
+        boolean hover = rect.contains(mouseX, mouseY);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
+        context.drawText(this.textRenderer, Text.literal(label), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
     }
 
     private void updateThicknessFromMouse(double mouseX) {
@@ -301,7 +310,8 @@ public class TrevorSettingsScreen extends Screen {
         thicknessTrackRect = new Rect(panelLeft + 146, panelTop + 122, 170, 16);
         svRect = new Rect(panelLeft + 14, panelTop + 160, 168, 102);
         hueRect = new Rect(panelLeft + 188, panelTop + 160, 14, 102);
-        doneRect = new Rect(panelLeft + 14, panelTop + 264, 352, 20);
+        entityPresetRect = new Rect(panelLeft + 14, panelTop + 240, 352, 20);
+        doneRect = new Rect(panelLeft + 14, panelTop + 266, 352, 18);
     }
 
     private String hexColor() {

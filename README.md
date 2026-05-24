@@ -9,6 +9,7 @@ It highlights Trevor animals with ESP boxes and optional tracers, plus an in-gam
 - Optional tracer line to Trevor animals
 - Custom tracer color
 - Adjustable tracer thickness
+- Entity preset editor with locked Default preset
 - In-game config UI
 - Debug command for targeted entity inspection
 
