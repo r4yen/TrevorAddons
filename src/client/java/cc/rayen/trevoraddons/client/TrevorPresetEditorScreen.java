@@ -136,10 +136,10 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
 
         if (embedded) {
-            drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
             drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
             if (presetsExpanded) {
                 drawPresetsTree(context, mouseX, mouseY, accentColor);
+                drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
             }
         } else {
             context.drawText(mc().textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
@@ -546,18 +546,18 @@ public class TrevorPresetEditorScreen extends Screen {
                 drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
             }
             if (row.canDelete) {
-                drawSmallButton(context, row.deleteRect, "🗑", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+                drawTrashButton(context, row.deleteRect, mouseX, mouseY);
             }
         } else if (row.kind == TreeKind.ENTITY) {
             if (row.canAdd) {
                 drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
             }
             if (row.canDelete) {
-                drawSmallButton(context, row.deleteRect, "🗑", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+                drawTrashButton(context, row.deleteRect, mouseX, mouseY);
             }
         } else if (row.kind == TreeKind.LIFE) {
             if (row.canDelete) {
-                drawSmallButton(context, row.deleteRect, "🗑", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+                drawTrashButton(context, row.deleteRect, mouseX, mouseY);
             }
         }
 
@@ -571,6 +571,27 @@ public class TrevorPresetEditorScreen extends Screen {
 
         context.fill(footerX, footerY, footerX + footerW, footerY + footerRect.h, 0xFF171C24);
         context.fill(footerX, footerY, footerX + footerW, footerY + 1, 0xFF10151B);
+        if (embedded) {
+            setRect = Rect.empty();
+            addRect = Rect.empty();
+            wildcardRect = Rect.empty();
+            deleteRect = Rect.empty();
+            useRect = Rect.empty();
+
+            Rect editorRect = new Rect(footerX + 12, footerY + 16, footerW - 24, 20);
+            boolean selectedIsEntity = selectionKind == SelectionKind.ENTITY;
+            boolean selectedIsLife = selectionKind == SelectionKind.LIFE;
+            context.drawText(mc().textRenderer, Text.literal(selectedIsEntity ? "Mob Type" : selectedIsLife ? "Lives" : "Selection"), footerX + 12, footerY + 4, 0xFFD5DBE5, false);
+            context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, (mobTypeFocused || inputFocused || editorRect.contains(mouseX, mouseY)) ? 0xFF2D3745 : 0xFF222A34);
+            String value = selectedIsEntity ? mobTypeInput : (selectedIsLife ? inputText : "");
+            String placeholder = selectedIsEntity ? "Enter entity id" : selectedIsLife ? "Enter life value" : "Select a mob or life";
+            context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
+            mobTypeRect = selectedIsEntity ? editorRect : Rect.empty();
+            inputRect = selectedIsLife ? editorRect : Rect.empty();
+            mobTypeSetRect = Rect.empty();
+            return;
+        }
+
         context.drawText(mc().textRenderer, Text.literal("Editor"), footerX + 12, footerY + 8, 0xFFEAF0F7, false);
 
         String selectedLabel = selectedSelectionLabel();
@@ -681,6 +702,16 @@ public class TrevorPresetEditorScreen extends Screen {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
         context.drawText(mc().textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
+    }
+
+    private void drawTrashButton(DrawContext context, Rect rect, int mouseX, int mouseY) {
+        boolean hover = rect.contains(mouseX, mouseY);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF7A3540 : 0xFF5F2D36);
+        context.fill(rect.x + 5, rect.y + 5, rect.x + rect.w - 5, rect.y + 7, 0xFFFFFFFF);
+        context.fill(rect.x + 6, rect.y + 7, rect.x + rect.w - 6, rect.y + rect.h - 4, 0xFFEDEDED);
+        context.fill(rect.x + 7, rect.y + 8, rect.x + 8, rect.y + rect.h - 5, 0xFF5F2D36);
+        context.fill(rect.x + 10, rect.y + 8, rect.x + 11, rect.y + rect.h - 5, 0xFF5F2D36);
+        context.fill(rect.x + 13, rect.y + 8, rect.x + 14, rect.y + rect.h - 5, 0xFF5F2D36);
     }
 
     private void drawInlineEditor(DrawContext context, int x, int y, int width, String valueText, boolean lifeValue, int mouseX, int mouseY) {
@@ -1139,8 +1170,8 @@ public class TrevorPresetEditorScreen extends Screen {
             presetsToggleRect = new Rect(panelLeft + 12, panelTop + 12, WINDOW_W - 24, 22);
             presetsHeaderRect = presetsToggleRect;
             presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 15, 16, 16);
-            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 36, WINDOW_W - 24, WINDOW_H - 48);
-            footerRect = Rect.empty();
+            footerRect = new Rect(panelLeft + 12, panelTop + WINDOW_H - 64, WINDOW_W - 24, 52);
+            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 12, WINDOW_W - 24, footerRect.y - (panelTop + 12) - 8);
         } else {
             presetsToggleRect = new Rect(panelLeft + 12, panelTop + 226, WINDOW_W - 24, 22);
             presetsHeaderRect = presetsToggleRect;
