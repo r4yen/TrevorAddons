@@ -320,6 +320,7 @@ public final class TrevorConfig {
         public String id;
         public String name;
         public List<Double> healthValues = new ArrayList<>();
+        public boolean matchesAnyHealth = false;
 
         public EntityRule() {
         }
@@ -331,7 +332,9 @@ public final class TrevorConfig {
         }
 
         public EntityRule copy() {
-            return new EntityRule(id, name, healthValues == null ? List.of() : healthValues);
+            EntityRule copy = new EntityRule(id, name, healthValues == null ? List.of() : healthValues);
+            copy.matchesAnyHealth = matchesAnyHealth;
+            return copy;
         }
 
         public void normalize() {
@@ -344,14 +347,26 @@ public final class TrevorConfig {
             if (healthValues == null) {
                 healthValues = new ArrayList<>();
             }
+            boolean hadWildcard = matchesAnyHealth;
+            boolean hadNaN = false;
+            for (Double value : healthValues) {
+                if (value != null && Double.isNaN(value)) {
+                    hadNaN = true;
+                }
+            }
+            healthValues.removeIf(value -> value != null && Double.isNaN(value));
+            matchesAnyHealth = hadWildcard || hadNaN;
         }
 
         public boolean matches(Entity entity, double maxHealth) {
             if (!matchesRule(entity, id, maxHealth)) {
                 return false;
             }
+            if (matchesAnyHealth) {
+                return true;
+            }
             for (Double value : healthValues) {
-                if (value != null && (Double.isNaN(value) || Math.abs(value - maxHealth) < 0.01d)) {
+                if (value != null && Math.abs(value - maxHealth) < 0.01d) {
                     return true;
                 }
             }

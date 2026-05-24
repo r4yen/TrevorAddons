@@ -522,19 +522,34 @@ public class TrevorPresetEditorScreen extends Screen {
                         continue;
                     }
 
+                    if (rule.matchesAnyHealth) {
+                        TreeRow wildcardRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, -1, bodyX + 52, y, bodyW - 52, 20);
+                        wildcardRow.title = "All";
+                        wildcardRow.subtitle = "";
+                        wildcardRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == -1;
+                        wildcardRow.editable = preset.editable;
+                        wildcardRow.canAdd = false;
+                        wildcardRow.canDelete = preset.editable;
+                        wildcardRow.wildcard = true;
+                        wildcardRow.depth = 2;
+                        treeRows.add(wildcardRow);
+                        y += drawTreeRow(context, wildcardRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
+                    }
+
                     List<Double> lives = rule.healthValues;
-                for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
-                    TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
-                    lifeRow.title = formatLife(lives.get(lifeIndex));
-                    lifeRow.subtitle = "";
-                    lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
-                    lifeRow.editable = preset.editable;
-                    lifeRow.canAdd = false;
-                    lifeRow.canDelete = preset.editable;
-                    lifeRow.depth = 2;
-                    treeRows.add(lifeRow);
-                    y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
-                }
+                    for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
+                        TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
+                        lifeRow.title = formatLife(lives.get(lifeIndex));
+                        lifeRow.subtitle = "";
+                        lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
+                        lifeRow.editable = preset.editable;
+                        lifeRow.canAdd = false;
+                        lifeRow.canDelete = preset.editable;
+                        lifeRow.wildcard = false;
+                        lifeRow.depth = 2;
+                        treeRows.add(lifeRow);
+                        y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
+                    }
                     y += 3;
                 }
                 y += 2;
@@ -820,7 +835,7 @@ public class TrevorPresetEditorScreen extends Screen {
             statusMessage = "Select a mob first.";
             return;
         }
-        double valueToAdd = Double.NaN;
+        double valueToAdd;
         if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
             valueToAdd = rule.healthValues.get(selectedLifeIndex);
         } else if (!rule.healthValues.isEmpty()) {
@@ -898,8 +913,24 @@ public class TrevorPresetEditorScreen extends Screen {
             return;
         }
         List<Double> parsed = parseLifeValues(inputText);
+        boolean wildcard = containsWildcardToken(inputText);
         if (parsed.isEmpty()) {
-            statusMessage = "Enter at least one value.";
+            if (!wildcard) {
+                statusMessage = "Enter at least one value.";
+                return;
+            }
+        }
+
+        if (wildcard) {
+            rule.matchesAnyHealth = true;
+            if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
+                rule.healthValues.remove(selectedLifeIndex);
+                selectedLifeIndex = -1;
+            }
+            sortValues(rule.healthValues);
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "All added.";
             return;
         }
 
@@ -948,21 +979,15 @@ public class TrevorPresetEditorScreen extends Screen {
             statusMessage = "Select a mob first.";
             return;
         }
+        rule.matchesAnyHealth = true;
         if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
-            rule.healthValues.set(selectedLifeIndex, Double.NaN);
-            sortValues(rule.healthValues);
-            TrevorAddonsClient.CONFIG.save();
-            syncInputFromSelection();
-            statusMessage = "Life set to All.";
-            return;
+            rule.healthValues.remove(selectedLifeIndex);
         }
-        if (!containsValue(rule.healthValues, Double.NaN)) {
-            rule.healthValues.add(Double.NaN);
-            sortValues(rule.healthValues);
-            TrevorAddonsClient.CONFIG.save();
-            syncInputFromSelection();
-            statusMessage = "All added.";
-        }
+        selectedLifeIndex = -1;
+        sortValues(rule.healthValues);
+        TrevorAddonsClient.CONFIG.save();
+        syncInputFromSelection();
+        statusMessage = "All added.";
     }
 
     private void deleteSelection() {
@@ -987,6 +1012,14 @@ public class TrevorPresetEditorScreen extends Screen {
         }
         TrevorConfig.EntityRule rule = selectedEntity();
         if (rule == null) {
+            return;
+        }
+
+        if (selectionKind == SelectionKind.LIFE && selectedLifeIndex == -1 && rule.matchesAnyHealth) {
+            rule.matchesAnyHealth = false;
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "All removed.";
             return;
         }
 
@@ -1124,12 +1157,17 @@ public class TrevorPresetEditorScreen extends Screen {
         TrevorConfig.Preset preset = selectedPreset();
         presetNameInput = preset == null ? "" : preset.name;
         mobTypeInput = selectionKind == SelectionKind.PRESET || rule == null ? "" : rule.id;
+        if (selectionKind == SelectionKind.LIFE && rule != null && selectedLifeIndex == -1 && rule.matchesAnyHealth) {
+            inputText = "All";
+            return;
+        }
         if (selectionKind == SelectionKind.LIFE && rule != null && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
             inputText = formatLife(rule.healthValues.get(selectedLifeIndex));
             return;
         }
         if (rule != null && (selectionKind == SelectionKind.ENTITY || selectionKind == SelectionKind.LIFE)) {
-            inputText = formatLives(rule.healthValues);
+            String lives = formatLives(rule.healthValues);
+            inputText = rule.matchesAnyHealth ? (lives.isEmpty() ? "All" : "All, " + lives) : lives;
             return;
         }
         inputText = "";
@@ -1203,6 +1241,9 @@ public class TrevorPresetEditorScreen extends Screen {
         }
         if (selectionKind == SelectionKind.ENTITY) {
             return "Mob: " + rule.name;
+        }
+        if (rule.matchesAnyHealth && selectedLifeIndex == -1) {
+            return "Life: All";
         }
         return "Life: " + formatLife(selectedLifeValue(rule));
     }
@@ -1331,32 +1372,51 @@ public class TrevorPresetEditorScreen extends Screen {
     }
 
     private List<Double> parseLifeValues(String input) {
+        LifeParseResult result = parseLifeValuesWithWildcard(input);
+        return result.values();
+    }
+
+    private LifeParseResult parseLifeValuesWithWildcard(String input) {
         List<Double> values = new ArrayList<>();
         if (input == null || input.isBlank()) {
-            return values;
+            return new LifeParseResult(values, false);
         }
 
         String[] parts = input.split("[,\\s]+");
+        boolean wildcard = false;
         for (String part : parts) {
             if (part.isBlank()) continue;
             if ("*".equals(part.trim()) || "All".equalsIgnoreCase(part.trim())) {
-                values.add(Double.NaN);
+                wildcard = true;
                 continue;
             }
             try {
                 values.add(Double.parseDouble(part));
             } catch (NumberFormatException ignored) {
-                return List.of();
+                return new LifeParseResult(List.of(), false);
             }
         }
-        return values;
+        return new LifeParseResult(values, wildcard);
+    }
+
+    private boolean containsWildcardToken(String input) {
+        if (input == null || input.isBlank()) {
+            return false;
+        }
+        String[] parts = input.split("[,\\s]+");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if ("*".equals(trimmed) || "All".equalsIgnoreCase(trimmed)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean containsValue(List<Double> values, Double candidate) {
         if (values == null) return false;
         for (Double value : values) {
             if (value == null || candidate == null) continue;
-            if (Double.isNaN(value) && Double.isNaN(candidate)) return true;
             if (!Double.isNaN(value) && !Double.isNaN(candidate) && Math.abs(value - candidate) < 0.01d) {
                 return true;
             }
@@ -1366,8 +1426,8 @@ public class TrevorPresetEditorScreen extends Screen {
 
     private static void sortValues(List<Double> values) {
         values.sort((a, b) -> {
-            boolean an = a == null || Double.isNaN(a);
-            boolean bn = b == null || Double.isNaN(b);
+            boolean an = a == null;
+            boolean bn = b == null;
             if (an && bn) return 0;
             if (an) return 1;
             if (bn) return -1;
@@ -1391,12 +1451,14 @@ public class TrevorPresetEditorScreen extends Screen {
 
     private static String formatLife(Double value) {
         if (value == null) return "";
-        if (Double.isNaN(value)) return "All";
         double rounded = Math.rint(value);
         if (Math.abs(value - rounded) < 0.0001d) {
             return String.format(Locale.ROOT, "%.0f", rounded);
         }
         return String.format(Locale.ROOT, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+
+    private record LifeParseResult(List<Double> values, boolean wildcard) {
     }
 
     private static boolean isAllowedLifeChar(char chr) {
@@ -1518,6 +1580,7 @@ public class TrevorPresetEditorScreen extends Screen {
         private boolean canAdd;
         private boolean canDelete;
         private boolean canUse;
+        private boolean wildcard;
         private Rect rect = Rect.empty();
         private Rect addRect = Rect.empty();
         private Rect deleteRect = Rect.empty();
