@@ -140,7 +140,6 @@ public class TrevorPresetEditorScreen extends Screen {
             drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
             if (presetsExpanded) {
                 drawPresetsTree(context, mouseX, mouseY, accentColor);
-                drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
             }
         } else {
             context.drawText(mc().textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
@@ -160,7 +159,7 @@ public class TrevorPresetEditorScreen extends Screen {
             }
         }
 
-        if (!statusMessage.isEmpty()) {
+        if (!embedded && !statusMessage.isEmpty()) {
             context.drawText(mc().textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
         }
 
@@ -516,11 +515,24 @@ public class TrevorPresetEditorScreen extends Screen {
         int titleW = row.rect.w - 112;
         if (row.kind == TreeKind.LIFE) {
             context.drawText(mc().textRenderer, Text.literal("❤"), row.rect.x + 28, row.rect.y + 4, 0xFFE35757, false);
-            context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW - 14)), row.rect.x + 40, row.rect.y + 6, 0xFFEAF0F7, false);
+            if (row.selected && inputFocused) {
+                drawInlineEditor(context, row.rect.x + 40, row.rect.y + 3, row.rect.w - 126, inputText, true, mouseX, mouseY);
+            } else {
+                context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW - 14)), row.rect.x + 40, row.rect.y + 6, 0xFFEAF0F7, false);
+            }
+        } else if (row.kind == TreeKind.ENTITY) {
+            if (row.selected && mobTypeFocused) {
+                drawInlineEditor(context, row.rect.x + 28, row.rect.y + 3, row.rect.w - 126, mobTypeInput, false, mouseX, mouseY);
+            } else {
+                context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+                if (!row.subtitle.isEmpty()) {
+                    context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
+                }
+            }
         } else {
             context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
         }
-        if (!row.subtitle.isEmpty()) {
+        if (row.kind == TreeKind.PRESET && !row.subtitle.isEmpty()) {
             context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
         }
 
@@ -534,18 +546,18 @@ public class TrevorPresetEditorScreen extends Screen {
                 drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
             }
             if (row.canDelete) {
-                drawSmallButton(context, row.deleteRect, "x", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+                drawSmallButton(context, row.deleteRect, "🗑", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
             }
         } else if (row.kind == TreeKind.ENTITY) {
             if (row.canAdd) {
                 drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
             }
             if (row.canDelete) {
-                drawSmallButton(context, row.deleteRect, "x", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+                drawSmallButton(context, row.deleteRect, "🗑", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
             }
         } else if (row.kind == TreeKind.LIFE) {
             if (row.canDelete) {
-                drawSmallButton(context, row.deleteRect, "x", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+                drawSmallButton(context, row.deleteRect, "🗑", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
             }
         }
 
@@ -669,6 +681,17 @@ public class TrevorPresetEditorScreen extends Screen {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
         context.drawText(mc().textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
+    }
+
+    private void drawInlineEditor(DrawContext context, int x, int y, int width, String valueText, boolean lifeValue, int mouseX, int mouseY) {
+        Rect editorRect = new Rect(x, y, Math.max(64, width), 18);
+        boolean hover = editorRect.contains(mouseX, mouseY);
+        boolean focused = lifeValue ? inputFocused : mobTypeFocused;
+        context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, focused || hover ? 0xFF2D3745 : 0xFF222A34);
+        String text = valueText == null || valueText.isEmpty()
+                ? (lifeValue ? "Type a value" : "Enter entity id")
+                : valueText;
+        context.drawText(mc().textRenderer, Text.literal(trim(text, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, valueText == null || valueText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
     }
 
     private void drawChip(DrawContext context, Rect rect, String label, int fill) {
@@ -939,8 +962,8 @@ public class TrevorPresetEditorScreen extends Screen {
             selectedEntityIndex = row.entityIndex;
             selectedLifeIndex = row.lifeIndex;
         }
-        mobTypeFocused = false;
-        inputFocused = false;
+        mobTypeFocused = row.kind == TreeKind.ENTITY;
+        inputFocused = row.kind == TreeKind.LIFE;
         syncInputFromSelection();
     }
 
@@ -1116,8 +1139,8 @@ public class TrevorPresetEditorScreen extends Screen {
             presetsToggleRect = new Rect(panelLeft + 12, panelTop + 12, WINDOW_W - 24, 22);
             presetsHeaderRect = presetsToggleRect;
             presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 15, 16, 16);
-            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 36, WINDOW_W - 24, 314);
-            footerRect = new Rect(panelLeft + 12, panelTop + 354, WINDOW_W - 24, 64);
+            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 36, WINDOW_W - 24, WINDOW_H - 48);
+            footerRect = Rect.empty();
         } else {
             presetsToggleRect = new Rect(panelLeft + 12, panelTop + 226, WINDOW_W - 24, 22);
             presetsHeaderRect = presetsToggleRect;
