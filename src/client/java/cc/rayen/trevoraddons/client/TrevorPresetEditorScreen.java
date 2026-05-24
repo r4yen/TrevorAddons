@@ -128,20 +128,29 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
 
         context.drawText(this.textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
-        context.drawText(this.textRenderer, Text.literal("Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
+        context.drawText(this.textRenderer, Text.literal(embedded ? "Preset editor" : "Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
         drawChip(context, activePresetChipRect, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), activePresetChipRect.w - 16), accentMuted);
 
-        drawSectionHeader(context, visualsHeaderRect, "Visuals", visualsExpanded, mouseX, mouseY, accentColor);
-        if (visualsExpanded) {
-            drawVisualsSection(context, mouseX, mouseY, accentColor);
-        }
+        if (embedded) {
+            drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
+            drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
+            if (presetsExpanded) {
+                drawPresetsTree(context, mouseX, mouseY, accentColor);
+                drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
+            }
+        } else {
+            drawSectionHeader(context, visualsHeaderRect, "Visuals", visualsExpanded, mouseX, mouseY, accentColor);
+            if (visualsExpanded) {
+                drawVisualsSection(context, mouseX, mouseY, accentColor);
+            }
 
-        drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
-        drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
+            drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
+            drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
 
-        if (presetsExpanded) {
-            drawPresetsTree(context, mouseX, mouseY, accentColor);
-            drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
+            if (presetsExpanded) {
+                drawPresetsTree(context, mouseX, mouseY, accentColor);
+                drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
+            }
         }
 
         if (!statusMessage.isEmpty()) {
@@ -590,12 +599,12 @@ public class TrevorPresetEditorScreen extends Screen {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF2A333F : 0xFF222A34);
         context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 72)), rect.x + 10, rect.y + 7, 0xFFE7EDF5, false);
-        int chipW = 52;
+        int chipW = 44;
         int chipH = 16;
-        int chipX = rect.x + rect.w - chipW - 10;
+        int chipX = rect.x + rect.w - chipW - 12;
         int chipY = rect.y + (rect.h - chipH) / 2;
         context.fill(chipX, chipY, chipX + chipW, chipY + chipH, value ? primaryColor() : 0xFF6D3140);
-        context.drawText(this.textRenderer, Text.literal(value ? "ON" : "OFF"), chipX + 15, chipY + 4, 0xFFFFFFFF, false);
+        context.drawText(this.textRenderer, Text.literal(value ? "ON" : "OFF"), chipX + 11, chipY + 4, 0xFFFFFFFF, false);
     }
 
     private void drawThicknessSlider(DrawContext context, int mouseX, int mouseY) {

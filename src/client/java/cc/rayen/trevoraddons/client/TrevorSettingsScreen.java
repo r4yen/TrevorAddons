@@ -328,13 +328,13 @@ public class TrevorSettingsScreen extends Screen {
     private void drawToggle(DrawContext context, Rect rect, String label, boolean value, int mouseX, int mouseY) {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF2A333F : 0xFF222A34);
-        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 72)), rect.x + 10, rect.y + 7, 0xFFE7EDF5, false);
-        int chipW = 52;
+        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 92)), rect.x + 10, rect.y + 7, 0xFFE7EDF5, false);
+        int chipW = 44;
         int chipH = 16;
-        int chipX = rect.x + rect.w - chipW - 10;
+        int chipX = rect.x + rect.w - chipW - 8;
         int chipY = rect.y + (rect.h - chipH) / 2;
         context.fill(chipX, chipY, chipX + chipW, chipY + chipH, value ? primaryColor() : 0xFF6D3140);
-        context.drawText(this.textRenderer, Text.literal(value ? "ON" : "OFF"), chipX + 15, chipY + 4, 0xFFFFFFFF, false);
+        context.drawText(this.textRenderer, Text.literal(value ? "ON" : "OFF"), chipX + 11, chipY + 4, 0xFFFFFFFF, false);
     }
 
     private void drawThicknessSlider(DrawContext context, int mouseX, int mouseY) {
