@@ -250,9 +250,10 @@ public class TrevorPresetEditorScreen extends Screen {
                     handleRowDelete(row);
                     return true;
                 }
-                if (doubleClick && (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY)) {
-                    selectRow(row);
-                    toggleRow(row);
+                if (doubleClick) {
+                    if (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY) {
+                        toggleRow(row);
+                    }
                     return true;
                 }
                 selectRow(row);
@@ -448,64 +449,69 @@ public class TrevorPresetEditorScreen extends Screen {
         int bodyW = presetsBodyRect.w;
         int y = bodyY - treeScroll;
 
-        List<TrevorConfig.Preset> presets = TrevorAddonsClient.CONFIG.presets;
-        for (int presetIndex = 0; presetIndex < presets.size(); presetIndex++) {
-            TrevorConfig.Preset preset = presets.get(presetIndex);
-            boolean presetExpanded = isExpandedPreset(preset.id);
-            TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 26);
-            presetRow.title = preset.name;
-            presetRow.subtitle = preset.id.equals(TrevorConfig.DEFAULT_PRESET_ID) ? "Default preset" : "Custom preset";
-            presetRow.expanded = presetExpanded;
-            presetRow.selected = selectionKind == SelectionKind.PRESET && preset.id.equals(selectedPresetId);
-            presetRow.active = preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
-            presetRow.editable = preset.editable;
-            presetRow.canAdd = preset.editable;
-            presetRow.canDelete = preset.editable;
-            presetRow.canUse = !preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
-            presetRow.depth = 0;
-            treeRows.add(presetRow);
-            y += drawTreeRow(context, presetRow, mouseX, mouseY, accentColor, bodyX + 14, bodyW - 14);
+        context.enableScissor(bodyX, bodyY, bodyX + bodyW, bodyY + presetsBodyRect.h);
+        try {
+            List<TrevorConfig.Preset> presets = TrevorAddonsClient.CONFIG.presets;
+            for (int presetIndex = 0; presetIndex < presets.size(); presetIndex++) {
+                TrevorConfig.Preset preset = presets.get(presetIndex);
+                boolean presetExpanded = isExpandedPreset(preset.id);
+                TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 26);
+                presetRow.title = preset.name;
+                presetRow.subtitle = preset.id.equals(TrevorConfig.DEFAULT_PRESET_ID) ? "Default preset" : "Custom preset";
+                presetRow.expanded = presetExpanded;
+                presetRow.selected = selectionKind == SelectionKind.PRESET && preset.id.equals(selectedPresetId);
+                presetRow.active = preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
+                presetRow.editable = preset.editable;
+                presetRow.canAdd = preset.editable;
+                presetRow.canDelete = preset.editable;
+                presetRow.canUse = !preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
+                presetRow.depth = 0;
+                treeRows.add(presetRow);
+                y += drawTreeRow(context, presetRow, mouseX, mouseY, accentColor, bodyX + 14, bodyW - 14);
 
-            if (!presetExpanded) {
-                y += 2;
-                continue;
-            }
-
-            for (int entityIndex = 0; entityIndex < preset.entities.size(); entityIndex++) {
-                TrevorConfig.EntityRule rule = preset.entities.get(entityIndex);
-                boolean entityExpanded = isExpandedEntity(preset.id, entityIndex);
-                TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 34, y, bodyW - 34, 24);
-                entityRow.title = "Mob " + (entityIndex + 1);
-                entityRow.subtitle = rule.name;
-                entityRow.expanded = entityExpanded;
-                entityRow.selected = selectionKind == SelectionKind.ENTITY && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex;
-                entityRow.editable = preset.editable;
-                entityRow.canAdd = preset.editable;
-                entityRow.canDelete = preset.editable && preset.entities.size() > 1;
-                entityRow.depth = 1;
-                treeRows.add(entityRow);
-                y += drawTreeRow(context, entityRow, mouseX, mouseY, accentColor, bodyX + 34, bodyW - 34);
-
-                if (!entityExpanded) {
-                    y += 3;
+                if (!presetExpanded) {
+                    y += 2;
                     continue;
                 }
 
-                List<Double> lives = rule.healthValues;
-                for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
-                    TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
-                    lifeRow.title = formatLife(lives.get(lifeIndex));
-                    lifeRow.subtitle = "";
-                    lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
-                    lifeRow.editable = preset.editable;
-                    lifeRow.canDelete = preset.editable;
-                    lifeRow.depth = 2;
-                    treeRows.add(lifeRow);
-                    y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
+                for (int entityIndex = 0; entityIndex < preset.entities.size(); entityIndex++) {
+                    TrevorConfig.EntityRule rule = preset.entities.get(entityIndex);
+                    boolean entityExpanded = isExpandedEntity(preset.id, entityIndex);
+                    TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 34, y, bodyW - 34, 24);
+                    entityRow.title = "Mob " + (entityIndex + 1);
+                    entityRow.subtitle = rule.name;
+                    entityRow.expanded = entityExpanded;
+                    entityRow.selected = selectionKind == SelectionKind.ENTITY && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex;
+                    entityRow.editable = preset.editable;
+                    entityRow.canAdd = preset.editable;
+                    entityRow.canDelete = preset.editable && preset.entities.size() > 1;
+                    entityRow.depth = 1;
+                    treeRows.add(entityRow);
+                    y += drawTreeRow(context, entityRow, mouseX, mouseY, accentColor, bodyX + 34, bodyW - 34);
+
+                    if (!entityExpanded) {
+                        y += 3;
+                        continue;
+                    }
+
+                    List<Double> lives = rule.healthValues;
+                    for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
+                        TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
+                        lifeRow.title = formatLife(lives.get(lifeIndex));
+                        lifeRow.subtitle = "";
+                        lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
+                        lifeRow.editable = preset.editable;
+                        lifeRow.canDelete = preset.editable;
+                        lifeRow.depth = 2;
+                        treeRows.add(lifeRow);
+                        y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 52, bodyW - 52);
+                    }
+                    y += 3;
                 }
-                y += 3;
+                y += 2;
             }
-            y += 2;
+        } finally {
+            context.disableScissor();
         }
 
         treeContentHeight = Math.max(0, y - bodyY + treeScroll);
