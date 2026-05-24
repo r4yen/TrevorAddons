@@ -206,11 +206,11 @@ public class TrevorPresetEditorScreen extends Screen {
                 }
                 for (TreeRow row : treeRows) {
                     if (!row.rect.contains(mouseX, mouseY)) continue;
-                    if (row.addRect.contains(mouseX, mouseY)) {
+                    if (row.addRect.contains(mouseX, mouseY) && row.canAdd) {
                         handleRowPlus(row);
                         return true;
                     }
-                    if (row.deleteRect.contains(mouseX, mouseY)) {
+                    if (row.deleteRect.contains(mouseX, mouseY) && row.canDelete) {
                         handleRowDelete(row);
                         return true;
                     }
@@ -270,11 +270,11 @@ public class TrevorPresetEditorScreen extends Screen {
 
             for (TreeRow row : treeRows) {
                 if (!row.rect.contains(mouseX, mouseY)) continue;
-                if (row.addRect.contains(mouseX, mouseY)) {
+                if (row.addRect.contains(mouseX, mouseY) && row.canAdd) {
                     handleRowPlus(row);
                     return true;
                 }
-                if (row.deleteRect.contains(mouseX, mouseY)) {
+                if (row.deleteRect.contains(mouseX, mouseY) && row.canDelete) {
                     handleRowDelete(row);
                     return true;
                 }
@@ -593,12 +593,8 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
         }
 
-        if (row.canAdd) {
-            drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
-        }
-        if (row.canDelete) {
-            drawSmallButton(context, row.deleteRect, "-", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
-        }
+        drawSquareSymbolButton(context, row.addRect, "+", row.canAdd, mouseX, mouseY, 0xFF324153, 0xFF222A34);
+        drawSquareSymbolButton(context, row.deleteRect, "-", row.canDelete, mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
 
         return row.rect.h + 3;
     }
@@ -660,8 +656,8 @@ public class TrevorPresetEditorScreen extends Screen {
         addRect = new Rect(footerX + 12, footerY + 92, 18, 18);
         deleteRect = new Rect(footerX + 36, footerY + 92, 18, 18);
 
-        drawSmallButton(context, addRect, "+", mouseX, mouseY, accentMuted, accentDark);
-        drawSmallButton(context, deleteRect, "-", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+        drawSquareSymbolButton(context, addRect, "+", true, mouseX, mouseY, accentMuted, accentDark);
+        drawSquareSymbolButton(context, deleteRect, "-", true, mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
     }
 
     private void drawSectionHeader(DrawContext context, Rect rect, String label, boolean expanded, int mouseX, int mouseY, int accentColor) {
@@ -736,7 +732,15 @@ public class TrevorPresetEditorScreen extends Screen {
     private void drawSmallButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY, int hoverColor, int baseColor) {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
-        context.drawText(mc().textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + 1, 0xFF10151B);
+        context.fill(rect.x, rect.y + rect.h - 1, rect.x + rect.w, rect.y + rect.h, 0xFF10151B);
+        context.drawCenteredTextWithShadow(mc().textRenderer, Text.literal(label), rect.x + rect.w / 2, rect.y + 5, 0xFFFFFFFF);
+    }
+
+    private void drawSquareSymbolButton(DrawContext context, Rect rect, String symbol, boolean enabled, int mouseX, int mouseY, int hoverColor, int baseColor) {
+        int visibleHover = enabled ? hoverColor : scaleRgb(hoverColor, 0.82f);
+        int visibleBase = enabled ? baseColor : scaleRgb(baseColor, 0.82f);
+        drawSmallButton(context, rect, symbol, mouseX, mouseY, visibleHover, visibleBase);
     }
 
     private void drawTrashButton(DrawContext context, Rect rect, int mouseX, int mouseY) {
