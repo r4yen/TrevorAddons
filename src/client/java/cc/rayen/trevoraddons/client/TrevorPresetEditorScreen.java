@@ -102,6 +102,13 @@ public class TrevorPresetEditorScreen extends Screen {
         this.embedded = embedded;
     }
 
+    public void syncHost(MinecraftClient client, int width, int height) {
+        this.client = client;
+        this.width = width;
+        this.height = height;
+        this.textRenderer = client == null ? null : client.textRenderer;
+    }
+
     @Override
     protected void init() {
         syncPickerFromConfig();

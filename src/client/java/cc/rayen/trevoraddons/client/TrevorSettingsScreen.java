@@ -85,6 +85,7 @@ public class TrevorSettingsScreen extends Screen {
         if (page == Page.VISUALS) {
             drawVisualsPage(context, mouseX, mouseY);
         } else {
+            syncEmbeddedPresetEditor();
             presetEditor.render(context, mouseX, mouseY, deltaTicks);
         }
 
@@ -121,6 +122,7 @@ public class TrevorSettingsScreen extends Screen {
         if (page == Page.VISUALS) {
             return handleVisualsClick(mouseX, mouseY);
         }
+        syncEmbeddedPresetEditor();
         return presetEditor.mouseClicked(click, doubleClick);
     }
 
@@ -141,6 +143,7 @@ public class TrevorSettingsScreen extends Screen {
                 return true;
             }
         }
+        syncEmbeddedPresetEditor();
         return page == Page.PRESETS && presetEditor.mouseDragged(click, deltaX, deltaY) ? true : super.mouseDragged(click, deltaX, deltaY);
     }
 
@@ -151,6 +154,7 @@ public class TrevorSettingsScreen extends Screen {
         draggingHue = false;
         setDragging(false);
         flushConfigIfDirty();
+        syncEmbeddedPresetEditor();
         return page == Page.PRESETS && presetEditor.mouseReleased(click) ? true : super.mouseReleased(click);
     }
 
@@ -160,6 +164,7 @@ public class TrevorSettingsScreen extends Screen {
             close();
             return true;
         }
+        syncEmbeddedPresetEditor();
         if (page == Page.PRESETS && presetEditor.keyPressed(input)) {
             return true;
         }
@@ -168,6 +173,7 @@ public class TrevorSettingsScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput input) {
+        syncEmbeddedPresetEditor();
         if (page == Page.PRESETS && presetEditor.charTyped(input)) {
             return true;
         }
@@ -251,6 +257,10 @@ public class TrevorSettingsScreen extends Screen {
 
     private void markConfigDirty() {
         configDirty = true;
+    }
+
+    private void syncEmbeddedPresetEditor() {
+        presetEditor.syncHost(this.client, this.width, this.height);
     }
 
     private void flushConfigIfDirty() {
