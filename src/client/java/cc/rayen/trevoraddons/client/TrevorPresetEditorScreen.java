@@ -124,16 +124,12 @@ public class TrevorPresetEditorScreen extends Screen {
         renderInGameBackground(context);
 
         int panelLeft = this.width / 2 - WINDOW_W / 2;
-        int panelTop = this.height / 2 - WINDOW_H / 2;
+        int panelTop = this.height / 2 - layoutHeight() / 2;
         int panelRight = panelLeft + WINDOW_W;
-        int panelBottom = panelTop + WINDOW_H;
+        int panelBottom = panelTop + layoutHeight();
         int accentColor = primaryColor();
         int accentMuted = scaleRgb(accentColor, 0.78f);
         int accentDark = scaleRgb(accentColor, 0.46f);
-
-        context.fill(panelLeft, panelTop, panelRight, panelBottom, 0xE0171B22);
-        context.fill(panelLeft + 1, panelTop + 1, panelRight - 1, panelBottom - 1, 0xFF11151B);
-        context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
 
         if (embedded) {
             drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
@@ -142,6 +138,9 @@ public class TrevorPresetEditorScreen extends Screen {
                 drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
             }
         } else {
+            context.fill(panelLeft, panelTop, panelRight, panelBottom, 0xE0171B22);
+            context.fill(panelLeft + 1, panelTop + 1, panelRight - 1, panelBottom - 1, 0xFF11151B);
+            context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
             context.drawText(mc().textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
             context.drawText(mc().textRenderer, Text.literal("Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
             drawChip(context, activePresetChipRect, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), activePresetChipRect.w - 16), accentMuted);
@@ -1150,6 +1149,10 @@ public class TrevorPresetEditorScreen extends Screen {
         return presetId + ":" + entityIndex;
     }
 
+    private int layoutHeight() {
+        return embedded ? 430 : WINDOW_H;
+    }
+
     private void rebuildTree() {
         if (!treeNeedsRefresh) return;
         treeNeedsRefresh = false;
@@ -1157,9 +1160,9 @@ public class TrevorPresetEditorScreen extends Screen {
 
     private void updateLayout() {
         int panelLeft = this.width / 2 - WINDOW_W / 2;
-        int panelTop = this.height / 2 - WINDOW_H / 2;
+        int panelTop = this.height / 2 - layoutHeight() / 2;
 
-        closeRect = new Rect(panelLeft + WINDOW_W - 100, panelTop + WINDOW_H - 28, 88, 18);
+        closeRect = new Rect(panelLeft + WINDOW_W - 100, panelTop + layoutHeight() - 28, 88, 18);
         activePresetChipRect = new Rect(panelLeft + WINDOW_W - 188, panelTop + 14, 172, 20);
 
         visualsToggleRect = new Rect(panelLeft + 12, panelTop + 52, WINDOW_W - 24, 22);
@@ -1169,9 +1172,9 @@ public class TrevorPresetEditorScreen extends Screen {
         if (embedded) {
             presetsToggleRect = new Rect(panelLeft + 12, panelTop + 12, WINDOW_W - 24, 22);
             presetsHeaderRect = presetsToggleRect;
-            presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 15, 16, 16);
-            footerRect = new Rect(panelLeft + 12, panelTop + WINDOW_H - 64, WINDOW_W - 24, 52);
-            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 12, WINDOW_W - 24, footerRect.y - (panelTop + 12) - 8);
+            presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 54, 16, 16);
+            footerRect = new Rect(panelLeft + 12, panelTop + layoutHeight() - 64, WINDOW_W - 24, 52);
+            presetsBodyRect = new Rect(panelLeft + 12, panelTop + 84, WINDOW_W - 24, footerRect.y - (panelTop + 84) - 8);
         } else {
             presetsToggleRect = new Rect(panelLeft + 12, panelTop + 226, WINDOW_W - 24, 22);
             presetsHeaderRect = presetsToggleRect;
