@@ -25,14 +25,6 @@ It highlights Trevor animals with ESP boxes and optional tracers, plus an in-gam
 - Fabric Loader `>=0.19.2`
 - Fabric API `0.138.4+1.21.10`
 
-## Build
-
-```bash
-./gradlew build
-```
-
-The built jar is generated in `build/libs/`.
-
 ## License
 
 All rights reserved.
