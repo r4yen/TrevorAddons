@@ -29,7 +29,6 @@ public class TrevorSettingsScreen extends Screen {
     private Rect visualDetectionCard = Rect.empty();
     private Rect visualAppearanceCard = Rect.empty();
     private Rect presetInfoCard = Rect.empty();
-    private Rect openPresetEditorRect = Rect.empty();
     private Rect espToggleRect = Rect.empty();
     private Rect tracerToggleRect = Rect.empty();
     private Rect thicknessTrackRect = Rect.empty();
@@ -41,6 +40,7 @@ public class TrevorSettingsScreen extends Screen {
     private boolean draggingHue = false;
     private boolean configDirty = false;
 
+    private final TrevorPresetEditorScreen presetEditor;
     private float hue = 0.0f;
     private float saturation = 1.0f;
     private float value = 1.0f;
@@ -49,6 +49,7 @@ public class TrevorSettingsScreen extends Screen {
     public TrevorSettingsScreen(Screen parent) {
         super(Text.literal("TrevorAddons Settings"));
         this.parent = parent;
+        this.presetEditor = new TrevorPresetEditorScreen(this, true);
     }
 
     @Override
@@ -84,7 +85,7 @@ public class TrevorSettingsScreen extends Screen {
         if (page == Page.VISUALS) {
             drawVisualsPage(context, mouseX, mouseY);
         } else {
-            drawPresetsPage(context, mouseX, mouseY, accentMuted, accentDark);
+            presetEditor.render(context, mouseX, mouseY, deltaTicks);
         }
 
         if (!statusMessage.isEmpty()) {
@@ -120,11 +121,7 @@ public class TrevorSettingsScreen extends Screen {
         if (page == Page.VISUALS) {
             return handleVisualsClick(mouseX, mouseY);
         }
-        if (openPresetEditorRect.contains(mouseX, mouseY)) {
-            this.client.setScreen(new TrevorPresetEditorScreen(this));
-            return true;
-        }
-        return super.mouseClicked(click, doubleClick);
+        return presetEditor.mouseClicked(click, doubleClick);
     }
 
     @Override
@@ -144,7 +141,7 @@ public class TrevorSettingsScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseDragged(click, deltaX, deltaY);
+        return page == Page.PRESETS && presetEditor.mouseDragged(click, deltaX, deltaY) ? true : super.mouseDragged(click, deltaX, deltaY);
     }
 
     @Override
@@ -154,7 +151,7 @@ public class TrevorSettingsScreen extends Screen {
         draggingHue = false;
         setDragging(false);
         flushConfigIfDirty();
-        return super.mouseReleased(click);
+        return page == Page.PRESETS && presetEditor.mouseReleased(click) ? true : super.mouseReleased(click);
     }
 
     @Override
@@ -163,11 +160,17 @@ public class TrevorSettingsScreen extends Screen {
             close();
             return true;
         }
+        if (page == Page.PRESETS && presetEditor.keyPressed(input)) {
+            return true;
+        }
         return super.keyPressed(input);
     }
 
     @Override
     public boolean charTyped(CharInput input) {
+        if (page == Page.PRESETS && presetEditor.charTyped(input)) {
+            return true;
+        }
         return super.charTyped(input);
     }
 
@@ -229,13 +232,6 @@ public class TrevorSettingsScreen extends Screen {
         context.fill(svRect.x + svRect.w + 25, svRect.y + 25, svRect.x + svRect.w + 95, svRect.y + 47, 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF));
     }
 
-    private void drawPresetsPage(DrawContext context, int mouseX, int mouseY, int accentMuted, int accentDark) {
-        drawCard(context, presetInfoCard, "Presets", "Open the preset editor in a separate window.");
-        context.drawText(this.textRenderer, Text.literal("Active preset"), presetInfoCard.x + 12, presetInfoCard.y + 12, 0xFFEAF0F7, false);
-        context.drawText(this.textRenderer, Text.literal(trim(TrevorAddonsClient.CONFIG.getActivePresetName(), presetInfoCard.w - 24)), presetInfoCard.x + 12, presetInfoCard.y + 28, 0xFF9AA3AF, false);
-        drawButton(context, openPresetEditorRect, "Open Preset Editor", mouseX, mouseY, accentMuted, accentDark);
-    }
-
     private void updateLayout() {
         int panelLeft = this.width / 2 - WINDOW_W / 2;
         int panelTop = this.height / 2 - WINDOW_H / 2;
@@ -246,14 +242,11 @@ public class TrevorSettingsScreen extends Screen {
 
         visualDetectionCard = new Rect(panelLeft + 12, panelTop + 84, 240, 140);
         visualAppearanceCard = new Rect(panelLeft + 264, panelTop + 84, 484, 260);
-        presetInfoCard = new Rect(panelLeft + 12, panelTop + 84, WINDOW_W - 24, 128);
-
         espToggleRect = new Rect(visualDetectionCard.x + 12, visualDetectionCard.y + 44, visualDetectionCard.w - 24, 24);
         tracerToggleRect = new Rect(visualDetectionCard.x + 12, visualDetectionCard.y + 74, visualDetectionCard.w - 24, 24);
         thicknessTrackRect = new Rect(visualAppearanceCard.x + 16, visualAppearanceCard.y + 54, 190, 16);
         svRect = new Rect(visualAppearanceCard.x + 16, visualAppearanceCard.y + 98, 184, 120);
         hueRect = new Rect(visualAppearanceCard.x + 210, visualAppearanceCard.y + 98, 14, 120);
-        openPresetEditorRect = new Rect(presetInfoCard.x + 12, presetInfoCard.y + 54, 180, 22);
     }
 
     private void markConfigDirty() {

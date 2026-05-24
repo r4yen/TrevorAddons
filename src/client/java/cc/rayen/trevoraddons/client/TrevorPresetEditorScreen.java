@@ -37,6 +37,7 @@ public class TrevorPresetEditorScreen extends Screen {
     };
 
     private final Screen parent;
+    private final boolean embedded;
     private final Set<String> expandedPresetIds = new HashSet<>();
     private final Set<String> expandedEntityIds = new HashSet<>();
     private final List<TreeRow> treeRows = new ArrayList<>();
@@ -91,8 +92,13 @@ public class TrevorPresetEditorScreen extends Screen {
     private String statusMessage = "";
 
     public TrevorPresetEditorScreen(Screen parent) {
+        this(parent, false);
+    }
+
+    public TrevorPresetEditorScreen(Screen parent, boolean embedded) {
         super(Text.literal("TrevorAddons Preset Editor"));
         this.parent = parent;
+        this.embedded = embedded;
     }
 
     @Override
@@ -142,7 +148,9 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(this.textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
         }
 
-        drawActionButton(context, closeRect, "Close", mouseX, mouseY, accentMuted, accentDark);
+        if (!embedded) {
+            drawActionButton(context, closeRect, "Close", mouseX, mouseY, accentMuted, accentDark);
+        }
         super.render(context, mouseX, mouseY, deltaTicks);
     }
 
@@ -153,7 +161,7 @@ public class TrevorPresetEditorScreen extends Screen {
         double mouseX = click.x();
         double mouseY = click.y();
 
-        if (closeRect.contains(mouseX, mouseY)) {
+        if (!embedded && closeRect.contains(mouseX, mouseY)) {
             close();
             return true;
         }
