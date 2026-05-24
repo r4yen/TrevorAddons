@@ -25,6 +25,7 @@ public class TrevorSettingsScreen extends Screen {
     private Page page = Page.VISUALS;
     private Rect tabVisualsRect = Rect.empty();
     private Rect tabPresetsRect = Rect.empty();
+    private Rect presetCreateRect = Rect.empty();
     private Rect closeRect = Rect.empty();
     private Rect visualDetectionCard = Rect.empty();
     private Rect visualAppearanceCard = Rect.empty();
@@ -81,6 +82,9 @@ public class TrevorSettingsScreen extends Screen {
 
         drawTab(context, tabVisualsRect, "Visuals", page == Page.VISUALS, mouseX, mouseY, accentColor);
         drawTab(context, tabPresetsRect, "Presets", page == Page.PRESETS, mouseX, mouseY, accentColor);
+        if (page == Page.PRESETS) {
+            drawSmallButton(context, presetCreateRect, "+", mouseX, mouseY, accentMuted, accentDark);
+        }
 
         if (page == Page.VISUALS) {
             drawVisualsPage(context, mouseX, mouseY);
@@ -111,6 +115,12 @@ public class TrevorSettingsScreen extends Screen {
         }
         if (tabPresetsRect.contains(mouseX, mouseY)) {
             page = Page.PRESETS;
+            statusMessage = "";
+            return true;
+        }
+        if (page == Page.PRESETS && presetCreateRect.contains(mouseX, mouseY)) {
+            syncEmbeddedPresetEditor();
+            presetEditor.createPresetFromSettings();
             statusMessage = "";
             return true;
         }
@@ -156,6 +166,15 @@ public class TrevorSettingsScreen extends Screen {
         flushConfigIfDirty();
         syncEmbeddedPresetEditor();
         return page == Page.PRESETS && presetEditor.mouseReleased(click) ? true : super.mouseReleased(click);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (page == Page.PRESETS) {
+            syncEmbeddedPresetEditor();
+            return presetEditor.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
@@ -244,6 +263,7 @@ public class TrevorSettingsScreen extends Screen {
 
         tabVisualsRect = new Rect(panelLeft + 16, panelTop + 52, 76, 20);
         tabPresetsRect = new Rect(panelLeft + 96, panelTop + 52, 76, 20);
+        presetCreateRect = new Rect(panelLeft + 180, panelTop + 52, 20, 20);
         closeRect = new Rect(panelLeft + WINDOW_W - 100, panelTop + WINDOW_H - 28, 88, 18);
 
         visualDetectionCard = new Rect(panelLeft + 12, panelTop + 84, 240, 140);
@@ -393,6 +413,12 @@ public class TrevorSettingsScreen extends Screen {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
         context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
+    }
+
+    private void drawSmallButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY, int hoverColor, int baseColor) {
+        boolean hover = rect.contains(mouseX, mouseY);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
+        context.drawText(this.textRenderer, Text.literal(label), rect.x + 6, rect.y + 4, 0xFFFFFFFF, false);
     }
 
     private void drawChip(DrawContext context, int x, int y, int w, int h, String label, int fill) {

@@ -75,6 +75,7 @@ public class TrevorPresetEditorScreen extends Screen {
     private boolean configDirty = false;
     private boolean inputFocused = false;
     private boolean mobTypeFocused = false;
+    private boolean presetNameFocused = false;
     private boolean treeNeedsRefresh = true;
 
     private int treeScroll = 0;
@@ -89,6 +90,7 @@ public class TrevorPresetEditorScreen extends Screen {
     private float saturation = 1.0f;
     private float value = 1.0f;
     private String mobTypeInput = "";
+    private String presetNameInput = "";
     private String inputText = "";
     private String statusMessage = "";
 
@@ -112,6 +114,8 @@ public class TrevorPresetEditorScreen extends Screen {
     @Override
     protected void init() {
         syncPickerFromConfig();
+        expandedPresetIds.clear();
+        expandedEntityIds.clear();
         syncSelectionToConfig();
         syncInputFromSelection();
         rebuildTree();
@@ -121,7 +125,6 @@ public class TrevorPresetEditorScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
         updateLayout();
         rebuildTree();
-        renderInGameBackground(context);
 
         int panelLeft = this.width / 2 - WINDOW_W / 2;
         int panelTop = this.height / 2 - layoutHeight() / 2;
@@ -131,13 +134,8 @@ public class TrevorPresetEditorScreen extends Screen {
         int accentMuted = scaleRgb(accentColor, 0.78f);
         int accentDark = scaleRgb(accentColor, 0.46f);
 
-        if (embedded) {
-            drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
-            if (presetsExpanded) {
-                drawPresetsTree(context, mouseX, mouseY, accentColor);
-                drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
-            }
-        } else {
+        if (!embedded) {
+            renderInGameBackground(context);
             context.fill(panelLeft, panelTop, panelRight, panelBottom, 0xE0171B22);
             context.fill(panelLeft + 1, panelTop + 1, panelRight - 1, panelBottom - 1, 0xFF11151B);
             context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
@@ -152,6 +150,11 @@ public class TrevorPresetEditorScreen extends Screen {
             drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
             drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
 
+            if (presetsExpanded) {
+                drawPresetsTree(context, mouseX, mouseY, accentColor);
+                drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
+            }
+        } else {
             if (presetsExpanded) {
                 drawPresetsTree(context, mouseX, mouseY, accentColor);
                 drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
@@ -247,15 +250,22 @@ public class TrevorPresetEditorScreen extends Screen {
                     handleRowDelete(row);
                     return true;
                 }
+                if (doubleClick && (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY)) {
+                    selectRow(row);
+                    toggleRow(row);
+                    return true;
+                }
                 selectRow(row);
                 inputFocused = false;
                 mobTypeFocused = false;
+                presetNameFocused = false;
                 return true;
             }
         }
 
         inputFocused = false;
         mobTypeFocused = false;
+        presetNameFocused = false;
         return super.mouseClicked(click, doubleClick);
     }
 
@@ -305,6 +315,22 @@ public class TrevorPresetEditorScreen extends Screen {
             close();
             return true;
         }
+        if (presetsExpanded && presetNameFocused) {
+            if (input.getKeycode() == 257 || input.getKeycode() == 335) {
+                applyPresetName();
+                return true;
+            }
+            if (input.getKeycode() == 259) {
+                if (!presetNameInput.isEmpty()) {
+                    presetNameInput = presetNameInput.substring(0, presetNameInput.length() - 1);
+                }
+                return true;
+            }
+            if (input.getKeycode() == 261) {
+                presetNameInput = "";
+                return true;
+            }
+        }
         if (presetsExpanded && mobTypeFocused) {
             if (input.getKeycode() == 257 || input.getKeycode() == 335) {
                 applyMobType();
@@ -342,10 +368,14 @@ public class TrevorPresetEditorScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput input) {
-        if (!presetsExpanded || (!inputFocused && !mobTypeFocused)) {
+        if (!presetsExpanded || (!inputFocused && !mobTypeFocused && !presetNameFocused)) {
             return super.charTyped(input);
         }
         char chr = (char) input.codepoint();
+        if (presetNameFocused && isAllowedNameChar(chr) && presetNameInput.length() < 96) {
+            presetNameInput += chr;
+            return true;
+        }
         if (mobTypeFocused && isAllowedTypeChar(chr) && mobTypeInput.length() < 96) {
             mobTypeInput += chr;
             return true;
@@ -421,7 +451,7 @@ public class TrevorPresetEditorScreen extends Screen {
         List<TrevorConfig.Preset> presets = TrevorAddonsClient.CONFIG.presets;
         for (int presetIndex = 0; presetIndex < presets.size(); presetIndex++) {
             TrevorConfig.Preset preset = presets.get(presetIndex);
-            boolean presetExpanded = isExpandedPreset(preset.id) || preset.id.equals(selectedPresetId);
+            boolean presetExpanded = isExpandedPreset(preset.id);
             TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 26);
             presetRow.title = preset.name;
             presetRow.subtitle = preset.id.equals(TrevorConfig.DEFAULT_PRESET_ID) ? "Default preset" : "Custom preset";
@@ -578,15 +608,28 @@ public class TrevorPresetEditorScreen extends Screen {
             useRect = Rect.empty();
 
             Rect editorRect = new Rect(footerX + 12, footerY + 16, footerW - 24, 20);
-            boolean selectedIsEntity = selectionKind == SelectionKind.ENTITY;
-            boolean selectedIsLife = selectionKind == SelectionKind.LIFE;
-            context.drawText(mc().textRenderer, Text.literal(selectedIsEntity ? "Mob Type" : selectedIsLife ? "Lives" : "Selection"), footerX + 12, footerY + 4, 0xFFD5DBE5, false);
-            context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, (mobTypeFocused || inputFocused || editorRect.contains(mouseX, mouseY)) ? 0xFF2D3745 : 0xFF222A34);
-            String value = selectedIsEntity ? mobTypeInput : (selectedIsLife ? inputText : "");
-            String placeholder = selectedIsEntity ? "Enter entity id" : selectedIsLife ? "Enter life value" : "Select a mob or life";
+            String label;
+            String value;
+            boolean focused;
+            if (selectionKind == SelectionKind.PRESET) {
+                label = "Preset name";
+                value = presetNameInput;
+                focused = presetNameFocused || editorRect.contains(mouseX, mouseY);
+            } else if (selectionKind == SelectionKind.ENTITY) {
+                label = "Mob type";
+                value = mobTypeInput;
+                focused = mobTypeFocused || editorRect.contains(mouseX, mouseY);
+            } else {
+                label = "Lives";
+                value = inputText;
+                focused = inputFocused || editorRect.contains(mouseX, mouseY);
+            }
+            context.drawText(mc().textRenderer, Text.literal(label), footerX + 12, footerY + 4, 0xFFD5DBE5, false);
+            context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, focused ? 0xFF2D3745 : 0xFF222A34);
+            String placeholder = selectionKind == SelectionKind.PRESET ? "Enter preset name" : selectionKind == SelectionKind.ENTITY ? "Enter entity id" : "Enter life value";
             context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
-            mobTypeRect = selectedIsEntity ? editorRect : Rect.empty();
-            inputRect = selectedIsLife ? editorRect : Rect.empty();
+            mobTypeRect = selectionKind == SelectionKind.ENTITY ? editorRect : Rect.empty();
+            inputRect = selectionKind == SelectionKind.LIFE ? editorRect : Rect.empty();
             mobTypeSetRect = Rect.empty();
             return;
         }
@@ -742,6 +785,10 @@ public class TrevorPresetEditorScreen extends Screen {
         markConfigDirty();
     }
 
+    public void createPresetFromSettings() {
+        addPreset();
+    }
+
     private void addMobToSelectedPreset() {
         TrevorConfig.Preset preset = selectedPreset();
         if (preset == null || !preset.editable) {
@@ -809,6 +856,25 @@ public class TrevorPresetEditorScreen extends Screen {
         TrevorAddonsClient.CONFIG.save();
         syncInputFromSelection();
         statusMessage = "Mob type updated.";
+    }
+
+    private void applyPresetName() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be renamed.";
+            return;
+        }
+
+        String value = presetNameInput == null ? "" : presetNameInput.trim();
+        if (value.isEmpty()) {
+            statusMessage = "Enter a preset name.";
+            return;
+        }
+
+        preset.name = value;
+        TrevorAddonsClient.CONFIG.save();
+        syncInputFromSelection();
+        statusMessage = "Preset renamed.";
     }
 
     private void applyInput(boolean append) {
@@ -994,6 +1060,7 @@ public class TrevorPresetEditorScreen extends Screen {
         }
         mobTypeFocused = row.kind == TreeKind.ENTITY;
         inputFocused = row.kind == TreeKind.LIFE;
+        presetNameFocused = row.kind == TreeKind.PRESET;
         syncInputFromSelection();
     }
 
@@ -1041,11 +1108,12 @@ public class TrevorPresetEditorScreen extends Screen {
         selectedEntityIndex = clampInt(selectedEntityIndex, 0, Math.max(0, selectedPreset().entities.size() - 1));
         selectedLifeIndex = -1;
         selectionKind = SelectionKind.PRESET;
-        expandedPresetIds.add(selectedPresetId);
     }
 
     private void syncInputFromSelection() {
         TrevorConfig.EntityRule rule = selectedEntity();
+        TrevorConfig.Preset preset = selectedPreset();
+        presetNameInput = preset == null ? "" : preset.name;
         mobTypeInput = selectionKind == SelectionKind.PRESET || rule == null ? "" : rule.id;
         if (selectionKind == SelectionKind.LIFE && rule != null && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
             inputText = formatLife(rule.healthValues.get(selectedLifeIndex));
@@ -1328,6 +1396,10 @@ public class TrevorPresetEditorScreen extends Screen {
 
     private static boolean isAllowedTypeChar(char chr) {
         return Character.isLetterOrDigit(chr) || chr == ':' || chr == '_' || chr == '.' || chr == '-';
+    }
+
+    private static boolean isAllowedNameChar(char chr) {
+        return !Character.isISOControl(chr);
     }
 
     private String trim(String text, int width) {
