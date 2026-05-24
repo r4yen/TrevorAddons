@@ -2,6 +2,7 @@ package cc.rayen.trevoraddons.client;
 
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
@@ -127,8 +128,8 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(panelLeft + 1, panelTop + 1, panelRight - 1, panelBottom - 1, 0xFF11151B);
         context.fill(panelLeft, panelTop, panelLeft + 4, panelBottom, accentColor);
 
-        context.drawText(this.textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
-        context.drawText(this.textRenderer, Text.literal(embedded ? "Preset editor" : "Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
+        context.drawText(mc().textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
+        context.drawText(mc().textRenderer, Text.literal(embedded ? "Preset editor" : "Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
         drawChip(context, activePresetChipRect, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), activePresetChipRect.w - 16), accentMuted);
 
         if (embedded) {
@@ -154,7 +155,7 @@ public class TrevorPresetEditorScreen extends Screen {
         }
 
         if (!statusMessage.isEmpty()) {
-            context.drawText(this.textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
+            context.drawText(mc().textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
         }
 
         if (!embedded) {
@@ -355,7 +356,7 @@ public class TrevorPresetEditorScreen extends Screen {
     @Override
     public void close() {
         flushConfigIfDirty();
-        this.client.setScreen(parent);
+        mc().setScreen(parent);
     }
 
     private boolean handleVisualsClick(double mouseX, double mouseY) {
@@ -391,16 +392,16 @@ public class TrevorPresetEditorScreen extends Screen {
     }
 
     private void drawVisualsSection(DrawContext context, int mouseX, int mouseY, int accentColor) {
-        context.drawText(this.textRenderer, Text.literal("Detection"), visualsBodyRect.x + 12, visualsBodyRect.y + 8, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal("Detection"), visualsBodyRect.x + 12, visualsBodyRect.y + 8, 0xFFEAF0F7, false);
         drawToggle(context, espToggleRect, "Trevor Animals ESP", TrevorAddonsClient.CONFIG.markTrevorAnimals, mouseX, mouseY);
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
 
-        context.drawText(this.textRenderer, Text.literal("Tracer thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal("Tracer thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
         drawThicknessSlider(context, mouseX, mouseY);
 
-        context.drawText(this.textRenderer, Text.literal("Tracer color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal("Tracer color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
         drawColorPicker(context);
-        context.drawText(this.textRenderer, Text.literal(hexColor()), svRect.x + svRect.w + 24, svRect.y + 6, 0xFFC4CCD9, false);
+        context.drawText(mc().textRenderer, Text.literal(hexColor()), svRect.x + svRect.w + 24, svRect.y + 6, 0xFFC4CCD9, false);
         context.fill(svRect.x + svRect.w + 24, svRect.y + 24, svRect.x + svRect.w + 96, svRect.y + 48, 0xFF000000);
         context.fill(svRect.x + svRect.w + 25, svRect.y + 25, svRect.x + svRect.w + 95, svRect.y + 47, 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF));
     }
@@ -502,14 +503,14 @@ public class TrevorPresetEditorScreen extends Screen {
         row.useRect = new Rect(row.rect.x + row.rect.w - 54, row.rect.y + 3, 18, row.rect.h - 6);
 
         if (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY) {
-            context.drawText(this.textRenderer, Text.literal(row.expanded ? "v" : ">"), row.toggleRect.x + 1, row.toggleRect.y + 3, 0xFFEAF0F7, false);
+            context.drawText(mc().textRenderer, Text.literal(row.expanded ? "v" : ">"), row.toggleRect.x + 1, row.toggleRect.y + 3, 0xFFEAF0F7, false);
         }
 
         int titleX = row.rect.x + 28;
         int titleW = row.rect.w - 90;
-        context.drawText(this.textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
         if (!row.subtitle.isEmpty()) {
-            context.drawText(this.textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
+            context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
         }
 
         if (row.kind == TreeKind.PRESET) {
@@ -547,25 +548,25 @@ public class TrevorPresetEditorScreen extends Screen {
 
         context.fill(footerX, footerY, footerX + footerW, footerY + footerRect.h, 0xFF171C24);
         context.fill(footerX, footerY, footerX + footerW, footerY + 1, 0xFF10151B);
-        context.drawText(this.textRenderer, Text.literal("Editor"), footerX + 12, footerY + 8, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal("Editor"), footerX + 12, footerY + 8, 0xFFEAF0F7, false);
 
         String selectedLabel = selectedSelectionLabel();
-        context.drawText(this.textRenderer, Text.literal(trim(selectedLabel, footerW - 180)), footerX + 12, footerY + 22, 0xFF9AA3AF, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(selectedLabel, footerW - 180)), footerX + 12, footerY + 22, 0xFF9AA3AF, false);
 
         mobTypeRect = new Rect(footerX + 12, footerY + 38, footerW - 92, 20);
         boolean mobFocused = mobTypeFocused || mobTypeRect.contains(mouseX, mouseY);
-        context.drawText(this.textRenderer, Text.literal("Mob Type"), footerX + 12, footerY + 34, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal("Mob Type"), footerX + 12, footerY + 34, 0xFFD5DBE5, false);
         context.fill(mobTypeRect.x, mobTypeRect.y, mobTypeRect.x + mobTypeRect.w, mobTypeRect.y + mobTypeRect.h, mobFocused ? 0xFF2D3745 : 0xFF222A34);
-        context.drawText(this.textRenderer, Text.literal(trim(mobTypeInput.isEmpty() ? "Enter entity id" : mobTypeInput, mobTypeRect.w - 20)), mobTypeRect.x + 10, mobTypeRect.y + 6, mobTypeInput.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(mobTypeInput.isEmpty() ? "Enter entity id" : mobTypeInput, mobTypeRect.w - 20)), mobTypeRect.x + 10, mobTypeRect.y + 6, mobTypeInput.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
         mobTypeSetRect = new Rect(footerX + footerW - 68, footerY + 38, 56, 20);
         drawSmallButton(context, mobTypeSetRect, "Set", mouseX, mouseY, accentMuted, accentDark);
 
         inputRect = new Rect(footerX + 12, footerY + 66, footerW - 24, 20);
         boolean focused = inputFocused || inputRect.contains(mouseX, mouseY);
-        context.drawText(this.textRenderer, Text.literal("Lives"), footerX + 12, footerY + 62, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal("Lives"), footerX + 12, footerY + 62, 0xFFD5DBE5, false);
         context.fill(inputRect.x, inputRect.y, inputRect.x + inputRect.w, inputRect.y + inputRect.h, focused ? 0xFF2D3745 : 0xFF222A34);
         String placeholder = selectionKind == SelectionKind.LIFE ? "Type a value or *" : "Type values separated by commas, or *";
-        context.drawText(this.textRenderer, Text.literal(trim(inputText.isEmpty() ? placeholder : inputText, inputRect.w - 20)), inputRect.x + 10, inputRect.y + 6, inputText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(inputText.isEmpty() ? placeholder : inputText, inputRect.w - 20)), inputRect.x + 10, inputRect.y + 6, inputText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
 
         setRect = new Rect(footerX + 12, footerY + 92, 46, 18);
         addRect = new Rect(footerX + 62, footerY + 92, 46, 18);
@@ -588,23 +589,23 @@ public class TrevorPresetEditorScreen extends Screen {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF222A34 : 0xFF1B212A);
         context.fill(rect.x, rect.y, rect.x + 4, rect.y + rect.h, accentColor);
-        context.drawText(this.textRenderer, Text.literal(expanded ? "v" : ">"), rect.x + 10, rect.y + 6, 0xFFEAF0F7, false);
-        context.drawText(this.textRenderer, Text.literal(label), rect.x + 28, rect.y + 6, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(expanded ? "v" : ">"), rect.x + 10, rect.y + 6, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(label), rect.x + 28, rect.y + 6, 0xFFEAF0F7, false);
         if (rect == presetsHeaderRect) {
-            context.drawText(this.textRenderer, Text.literal(trim(TrevorAddonsClient.CONFIG.getActivePresetName(), 120)), rect.x + rect.w - 140, rect.y + 6, 0xFF9AA3AF, false);
+            context.drawText(mc().textRenderer, Text.literal(trim(TrevorAddonsClient.CONFIG.getActivePresetName(), 120)), rect.x + rect.w - 140, rect.y + 6, 0xFF9AA3AF, false);
         }
     }
 
     private void drawToggle(DrawContext context, Rect rect, String label, boolean value, int mouseX, int mouseY) {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF2A333F : 0xFF222A34);
-        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 72)), rect.x + 10, rect.y + 7, 0xFFE7EDF5, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(label, rect.w - 72)), rect.x + 10, rect.y + 7, 0xFFE7EDF5, false);
         int chipW = 44;
         int chipH = 16;
         int chipX = rect.x + rect.w - chipW - 12;
         int chipY = rect.y + (rect.h - chipH) / 2;
         context.fill(chipX, chipY, chipX + chipW, chipY + chipH, value ? primaryColor() : 0xFF6D3140);
-        context.drawText(this.textRenderer, Text.literal(value ? "ON" : "OFF"), chipX + 11, chipY + 4, 0xFFFFFFFF, false);
+        context.drawText(mc().textRenderer, Text.literal(value ? "ON" : "OFF"), chipX + 11, chipY + 4, 0xFFFFFFFF, false);
     }
 
     private void drawThicknessSlider(DrawContext context, int mouseX, int mouseY) {
@@ -615,7 +616,7 @@ public class TrevorPresetEditorScreen extends Screen {
         int knobX = r.x + (int) Math.round(normalized * (r.w - 1));
         int knobColor = r.contains(mouseX, mouseY) || draggingThickness ? primaryColor() : 0xFFD9E2EE;
         context.fill(knobX - 3, r.y + 1, knobX + 4, r.y + 14, knobColor);
-        context.drawText(this.textRenderer, Text.literal(String.format(Locale.ROOT, "%.1f", TrevorAddonsClient.CONFIG.tracerLineWidth)), r.x + r.w + 12, r.y + 2, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal(String.format(Locale.ROOT, "%.1f", TrevorAddonsClient.CONFIG.tracerLineWidth)), r.x + r.w + 12, r.y + 2, 0xFFD5DBE5, false);
     }
 
     private void drawColorPicker(DrawContext context) {
@@ -656,12 +657,12 @@ public class TrevorPresetEditorScreen extends Screen {
     private void drawSmallButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY, int hoverColor, int baseColor) {
         boolean hover = rect.contains(mouseX, mouseY);
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
-        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
     }
 
     private void drawChip(DrawContext context, Rect rect, String label, int fill) {
         context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, fill);
-        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 6, 0xFFFFFFFF, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 6, 0xFFFFFFFF, false);
     }
 
     private void addPreset() {
@@ -1254,7 +1255,11 @@ public class TrevorPresetEditorScreen extends Screen {
     }
 
     private String trim(String text, int width) {
-        return this.textRenderer.trimToWidth(text, width);
+        return mc().textRenderer.trimToWidth(text, width);
+    }
+
+    private static MinecraftClient mc() {
+        return MinecraftClient.getInstance();
     }
 
     private static int primaryColor() {
