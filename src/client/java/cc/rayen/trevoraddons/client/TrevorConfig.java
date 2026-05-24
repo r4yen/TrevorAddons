@@ -349,7 +349,7 @@ public final class TrevorConfig {
                 return false;
             }
             for (Double value : healthValues) {
-                if (value != null && Math.abs(value - maxHealth) < 0.01d) {
+                if (value != null && (Double.isNaN(value) || Math.abs(value - maxHealth) < 0.01d)) {
                     return true;
                 }
             }

@@ -9,14 +9,15 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class TrevorSettingsScreen extends Screen {
     private static final int WINDOW_W = 760;
-    private static final int WINDOW_H = 440;
+    private static final int WINDOW_H = 470;
     private static final int COLOR_PICKER_STEP = 4;
-    private static final int PRESETS_PER_PAGE = 6;
     private static final double[] QUICK_VALUES = {100.0, 500.0, 1000.0, 5000.0, 10000.0};
     private static final String[] ENTITY_KEYS = {
             TrevorConfig.HORSE_FAMILY_KEY,
@@ -35,62 +36,54 @@ public class TrevorSettingsScreen extends Screen {
             "Chicken"
     };
 
-    private enum Page {
-        GENERAL,
-        PRESETS
-    }
-
     private final Screen parent;
+    private final Set<String> expandedPresetIds = new HashSet<>();
+    private final Set<String> expandedEntityIds = new HashSet<>();
+    private final List<TreeRow> treeRows = new ArrayList<>();
 
-    private Page page = Page.GENERAL;
-
-    private Rect generalDetectionCard = Rect.empty();
-    private Rect generalAppearanceCard = Rect.empty();
-    private Rect generalPresetCard = Rect.empty();
-    private Rect presetListCard = Rect.empty();
-    private Rect presetEditorCard = Rect.empty();
-    private Rect entityListCard = Rect.empty();
-
-    private Rect tabGeneralRect = Rect.empty();
-    private Rect tabPresetsRect = Rect.empty();
+    private Rect visualsHeaderRect = Rect.empty();
+    private Rect visualsBodyRect = Rect.empty();
+    private Rect presetsHeaderRect = Rect.empty();
+    private Rect presetsBodyRect = Rect.empty();
+    private Rect footerRect = Rect.empty();
     private Rect closeRect = Rect.empty();
-    private Rect openPresetsRect = Rect.empty();
     private Rect espToggleRect = Rect.empty();
     private Rect tracerToggleRect = Rect.empty();
     private Rect thicknessTrackRect = Rect.empty();
     private Rect svRect = Rect.empty();
     private Rect hueRect = Rect.empty();
+    private Rect activePresetChipRect = Rect.empty();
+    private Rect presetsAddRect = Rect.empty();
+    private Rect visualsToggleRect = Rect.empty();
+    private Rect presetsToggleRect = Rect.empty();
+    private Rect inputRect = Rect.empty();
+    private Rect setRect = Rect.empty();
+    private Rect addRect = Rect.empty();
+    private Rect wildcardRect = Rect.empty();
+    private Rect deleteRect = Rect.empty();
+    private Rect useRect = Rect.empty();
 
-    private Rect prevPageRect = Rect.empty();
-    private Rect nextPageRect = Rect.empty();
-    private Rect newPresetRect = Rect.empty();
-    private Rect duplicatePresetRect = Rect.empty();
-    private Rect deletePresetRect = Rect.empty();
-    private Rect usePresetRect = Rect.empty();
-    private Rect[] presetRows = new Rect[0];
-    private Rect[] entityRows = new Rect[0];
-    private Rect[] valueChipRects = new Rect[0];
-    private Rect lifeFieldRect = Rect.empty();
-    private Rect replaceRect = Rect.empty();
-    private Rect appendRect = Rect.empty();
-    private Rect clearRect = Rect.empty();
-    private Rect resetRect = Rect.empty();
-    private Rect[] quickAddRects = new Rect[0];
-
+    private boolean visualsExpanded = true;
+    private boolean presetsExpanded = true;
     private boolean draggingThickness = false;
     private boolean draggingSv = false;
     private boolean draggingHue = false;
     private boolean configDirty = false;
-    private boolean lifeFieldFocused = false;
+    private boolean inputFocused = false;
+    private boolean treeNeedsRefresh = true;
 
-    private int selectedPresetIndex = 0;
+    private int treeScroll = 0;
+    private int treeContentHeight = 0;
+
+    private SelectionKind selectionKind = SelectionKind.PRESET;
+    private String selectedPresetId = TrevorConfig.DEFAULT_PRESET_ID;
     private int selectedEntityIndex = 0;
-    private int presetPage = 0;
+    private int selectedLifeIndex = -1;
 
     private float hue = 0.0f;
     private float saturation = 1.0f;
     private float value = 1.0f;
-    private String lifeInput = "";
+    private String inputText = "";
     private String statusMessage = "";
 
     public TrevorSettingsScreen(Screen parent) {
@@ -102,13 +95,14 @@ public class TrevorSettingsScreen extends Screen {
     protected void init() {
         syncPickerFromConfig();
         syncSelectionToConfig();
-        updateLayout();
-        syncLifeInputFromSelection();
+        syncInputFromSelection();
+        rebuildTree();
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
         updateLayout();
+        rebuildTree();
         renderInGameBackground(context);
 
         int panelLeft = this.width / 2 - WINDOW_W / 2;
@@ -116,7 +110,7 @@ public class TrevorSettingsScreen extends Screen {
         int panelRight = panelLeft + WINDOW_W;
         int panelBottom = panelTop + WINDOW_H;
         int accentColor = primaryColor();
-        int accentMuted = scaleRgb(accentColor, 0.76f);
+        int accentMuted = scaleRgb(accentColor, 0.78f);
         int accentDark = scaleRgb(accentColor, 0.46f);
 
         context.fill(panelLeft, panelTop, panelRight, panelBottom, 0xE0171B22);
@@ -125,19 +119,23 @@ public class TrevorSettingsScreen extends Screen {
 
         context.drawText(this.textRenderer, Text.literal("TrevorAddons").styled(s -> s.withBold(true)), panelLeft + 16, panelTop + 14, accentColor, false);
         context.drawText(this.textRenderer, Text.literal("Client settings"), panelLeft + 16, panelTop + 30, 0xFF9AA3AF, false);
-        drawChip(context, panelRight - 188, panelTop + 14, 172, 20, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), 160), accentMuted);
+        drawChip(context, activePresetChipRect, trim("Active: " + TrevorAddonsClient.CONFIG.getActivePresetName(), activePresetChipRect.w - 16), accentMuted);
 
-        drawTab(context, tabGeneralRect, "General", page == Page.GENERAL, mouseX, mouseY, accentColor);
-        drawTab(context, tabPresetsRect, "Presets", page == Page.PRESETS, mouseX, mouseY, accentColor);
+        drawSectionHeader(context, visualsHeaderRect, "Visuals", visualsExpanded, mouseX, mouseY, accentColor);
+        if (visualsExpanded) {
+            drawVisualsSection(context, mouseX, mouseY, accentColor);
+        }
 
-        if (page == Page.GENERAL) {
-            drawGeneralPage(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
-        } else {
-            drawPresetPage(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
+        drawSectionHeader(context, presetsHeaderRect, "Presets", presetsExpanded, mouseX, mouseY, accentColor);
+        drawSmallButton(context, presetsAddRect, "+", mouseX, mouseY, accentMuted, accentDark);
+
+        if (presetsExpanded) {
+            drawPresetsTree(context, mouseX, mouseY, accentColor);
+            drawFooterEditor(context, mouseX, mouseY, accentColor, accentMuted, accentDark);
         }
 
         if (!statusMessage.isEmpty()) {
-            context.drawText(this.textRenderer, Text.literal(statusMessage), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
+            context.drawText(this.textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
         }
 
         drawActionButton(context, closeRect, "Close", mouseX, mouseY, accentMuted, accentDark);
@@ -151,47 +149,106 @@ public class TrevorSettingsScreen extends Screen {
         double mouseX = click.x();
         double mouseY = click.y();
 
-        if (tabGeneralRect.contains(mouseX, mouseY)) {
-            page = Page.GENERAL;
-            lifeFieldFocused = false;
-            statusMessage = "";
-            return true;
-        }
-        if (tabPresetsRect.contains(mouseX, mouseY)) {
-            page = Page.PRESETS;
-            lifeFieldFocused = false;
-            statusMessage = "";
-            return true;
-        }
         if (closeRect.contains(mouseX, mouseY)) {
             close();
             return true;
         }
-
-        if (page == Page.GENERAL) {
-            return handleGeneralClick(mouseX, mouseY);
+        if (visualsToggleRect.contains(mouseX, mouseY)) {
+            visualsExpanded = !visualsExpanded;
+            return true;
         }
-        return handlePresetClick(mouseX, mouseY);
+        if (presetsToggleRect.contains(mouseX, mouseY)) {
+            presetsExpanded = !presetsExpanded;
+            inputFocused = false;
+            return true;
+        }
+        if (presetsAddRect.contains(mouseX, mouseY)) {
+            addPreset();
+            return true;
+        }
+
+        if (visualsExpanded && handleVisualsClick(mouseX, mouseY)) {
+            return true;
+        }
+
+        if (presetsExpanded) {
+            if (inputRect.contains(mouseX, mouseY)) {
+                inputFocused = true;
+                return true;
+            }
+            if (setRect.contains(mouseX, mouseY)) {
+                applyInput(false);
+                return true;
+            }
+            if (addRect.contains(mouseX, mouseY)) {
+                applyInput(true);
+                return true;
+            }
+            if (wildcardRect.contains(mouseX, mouseY)) {
+                applyWildcard();
+                return true;
+            }
+            if (deleteRect.contains(mouseX, mouseY)) {
+                deleteSelection();
+                return true;
+            }
+            if (useRect.contains(mouseX, mouseY)) {
+                useSelectedPreset();
+                return true;
+            }
+
+            for (TreeRow row : treeRows) {
+                if (!row.rect.contains(mouseX, mouseY)) continue;
+                if (row.toggleRect.contains(mouseX, mouseY)) {
+                    toggleRow(row);
+                    return true;
+                }
+                if (row.addRect.contains(mouseX, mouseY)) {
+                    handleRowPlus(row);
+                    return true;
+                }
+                if (row.deleteRect.contains(mouseX, mouseY)) {
+                    handleRowDelete(row);
+                    return true;
+                }
+                selectRow(row);
+                inputFocused = false;
+                return true;
+            }
+        }
+
+        inputFocused = false;
+        return super.mouseClicked(click, doubleClick);
     }
 
     @Override
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         if (click.button() != 0) return super.mouseDragged(click, deltaX, deltaY);
-        if (page == Page.GENERAL) {
-            if (draggingThickness) {
-                updateThicknessFromMouse(click.x());
-                return true;
-            }
-            if (draggingSv) {
-                updateSvFromMouse(click.x(), click.y());
-                return true;
-            }
-            if (draggingHue) {
-                updateHueFromMouse(click.y());
-                return true;
-            }
+        if (draggingThickness) {
+            updateThicknessFromMouse(click.x());
+            return true;
+        }
+        if (draggingSv) {
+            updateSvFromMouse(click.x(), click.y());
+            return true;
+        }
+        if (draggingHue) {
+            updateHueFromMouse(click.y());
+            return true;
         }
         return super.mouseDragged(click, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (!presetsExpanded || !presetsBodyRect.contains(mouseX, mouseY)) {
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
+        if (treeContentHeight <= presetsBodyRect.h) {
+            return true;
+        }
+        treeScroll = clampInt(treeScroll - (int) Math.round(verticalAmount * 18.0), 0, treeContentHeight - presetsBodyRect.h);
+        return true;
     }
 
     @Override
@@ -210,19 +267,19 @@ public class TrevorSettingsScreen extends Screen {
             close();
             return true;
         }
-        if (page == Page.PRESETS && lifeFieldFocused) {
+        if (presetsExpanded && inputFocused) {
             if (input.getKeycode() == 257 || input.getKeycode() == 335) {
-                replaceValuesFromInput();
+                applyInput(false);
                 return true;
             }
             if (input.getKeycode() == 259) {
-                if (!lifeInput.isEmpty()) {
-                    lifeInput = lifeInput.substring(0, lifeInput.length() - 1);
+                if (!inputText.isEmpty()) {
+                    inputText = inputText.substring(0, inputText.length() - 1);
                 }
                 return true;
             }
             if (input.getKeycode() == 261) {
-                lifeInput = "";
+                inputText = "";
                 return true;
             }
         }
@@ -231,12 +288,12 @@ public class TrevorSettingsScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput input) {
-        if (page != Page.PRESETS || !lifeFieldFocused) {
+        if (!presetsExpanded || !inputFocused) {
             return super.charTyped(input);
         }
         char chr = (char) input.codepoint();
-        if (isAllowedLifeChar(chr) && lifeInput.length() < 96) {
-            lifeInput += chr;
+        if (isAllowedLifeChar(chr) && inputText.length() < 96) {
+            inputText += chr;
             return true;
         }
         return super.charTyped(input);
@@ -248,7 +305,7 @@ public class TrevorSettingsScreen extends Screen {
         this.client.setScreen(parent);
     }
 
-    private boolean handleGeneralClick(double mouseX, double mouseY) {
+    private boolean handleVisualsClick(double mouseX, double mouseY) {
         if (espToggleRect.contains(mouseX, mouseY)) {
             TrevorAddonsClient.CONFIG.markTrevorAnimals = !TrevorAddonsClient.CONFIG.markTrevorAnimals;
             markConfigDirty();
@@ -277,279 +334,203 @@ public class TrevorSettingsScreen extends Screen {
             updateHueFromMouse(mouseY);
             return true;
         }
-        if (openPresetsRect.contains(mouseX, mouseY)) {
-            page = Page.PRESETS;
-            statusMessage = "";
-            return true;
-        }
         return false;
     }
 
-    private boolean handlePresetClick(double mouseX, double mouseY) {
-        if (newPresetRect.contains(mouseX, mouseY)) {
-            TrevorConfig.Preset copy = TrevorAddonsClient.CONFIG.duplicatePreset(TrevorConfig.DEFAULT_PRESET_ID);
-            TrevorAddonsClient.CONFIG.save();
-            selectPresetById(copy.id);
-            syncLifeInputFromSelection();
-            statusMessage = "Created " + copy.name + ".";
-            return true;
-        }
-        if (duplicatePresetRect.contains(mouseX, mouseY)) {
-            TrevorConfig.Preset copy = TrevorAddonsClient.CONFIG.duplicatePreset(selectedPreset().id);
-            TrevorAddonsClient.CONFIG.save();
-            selectPresetById(copy.id);
-            syncLifeInputFromSelection();
-            statusMessage = "Duplicated to " + copy.name + ".";
-            return true;
-        }
-        if (deletePresetRect.contains(mouseX, mouseY)) {
-            if (!selectedPreset().editable) {
-                statusMessage = "Default preset cannot be deleted.";
-                return true;
-            }
-            TrevorAddonsClient.CONFIG.deletePreset(selectedPreset().id);
-            TrevorAddonsClient.CONFIG.save();
-            syncSelectionToConfig();
-            syncLifeInputFromSelection();
-            statusMessage = "Preset deleted.";
-            return true;
-        }
-        if (usePresetRect.contains(mouseX, mouseY)) {
-            TrevorAddonsClient.CONFIG.setActivePreset(selectedPreset().id);
-            TrevorAddonsClient.CONFIG.save();
-            statusMessage = "Active preset updated.";
-            return true;
-        }
-        if (prevPageRect.contains(mouseX, mouseY)) {
-            if (presetPage > 0) {
-                presetPage--;
-                clampSelectedPresetToPage();
-            }
-            return true;
-        }
-        if (nextPageRect.contains(mouseX, mouseY)) {
-            int maxPage = Math.max(0, (TrevorAddonsClient.CONFIG.presets.size() - 1) / PRESETS_PER_PAGE);
-            if (presetPage < maxPage) {
-                presetPage++;
-                clampSelectedPresetToPage();
-            }
-            return true;
-        }
-        if (lifeFieldRect.contains(mouseX, mouseY)) {
-            lifeFieldFocused = true;
-            return true;
-        }
-        if (replaceRect.contains(mouseX, mouseY)) {
-            replaceValuesFromInput();
-            return true;
-        }
-        if (appendRect.contains(mouseX, mouseY)) {
-            appendValuesFromInput();
-            return true;
-        }
-        if (clearRect.contains(mouseX, mouseY)) {
-            clearValues();
-            return true;
-        }
-        if (resetRect.contains(mouseX, mouseY)) {
-            resetSelectedEntityToDefault();
-            return true;
-        }
-
-        for (int i = 0; i < presetRows.length; i++) {
-            if (presetRows[i].contains(mouseX, mouseY)) {
-                selectedPresetIndex = Math.min(TrevorAddonsClient.CONFIG.presets.size() - 1, presetPage * PRESETS_PER_PAGE + i);
-                selectedEntityIndex = 0;
-                lifeFieldFocused = false;
-                syncLifeInputFromSelection();
-                statusMessage = "";
-                return true;
-            }
-        }
-        for (int i = 0; i < entityRows.length; i++) {
-            if (entityRows[i].contains(mouseX, mouseY)) {
-                selectedEntityIndex = i;
-                lifeFieldFocused = false;
-                syncLifeInputFromSelection();
-                statusMessage = "";
-                return true;
-            }
-        }
-        for (int i = 0; i < valueChipRects.length; i++) {
-            if (valueChipRects[i].contains(mouseX, mouseY)) {
-                removeValueAt(i);
-                return true;
-            }
-        }
-        for (int i = 0; i < quickAddRects.length; i++) {
-            if (quickAddRects[i].contains(mouseX, mouseY)) {
-                addValue(QUICK_VALUES[i]);
-                return true;
-            }
-        }
-        lifeFieldFocused = false;
-        return false;
-    }
-
-    private void drawGeneralPage(DrawContext context, int mouseX, int mouseY, int accentColor, int accentMuted, int accentDark) {
-        context.drawText(this.textRenderer, Text.literal("Detection"), generalDetectionCard.x + 12, generalDetectionCard.y + 12, 0xFFEAF0F7, false);
-        drawWrappedText(context, Text.literal("Toggle the Trevor highlight and tracer here."), generalDetectionCard.x + 12, generalDetectionCard.y + 30, generalDetectionCard.w - 24, 0xFF9AA3AF);
+    private void drawVisualsSection(DrawContext context, int mouseX, int mouseY, int accentColor) {
+        context.drawText(this.textRenderer, Text.literal("Detection"), visualsBodyRect.x + 12, visualsBodyRect.y + 8, 0xFFEAF0F7, false);
         drawToggle(context, espToggleRect, "Trevor Animals ESP", TrevorAddonsClient.CONFIG.markTrevorAnimals, mouseX, mouseY);
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
 
-        context.drawText(this.textRenderer, Text.literal("Appearance"), generalAppearanceCard.x + 12, generalAppearanceCard.y + 12, 0xFFEAF0F7, false);
-        drawWrappedText(context, Text.literal("Adjust color and line thickness."), generalAppearanceCard.x + 12, generalAppearanceCard.y + 30, generalAppearanceCard.w - 24, 0xFF9AA3AF);
-
-        context.drawText(this.textRenderer, Text.literal("Thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
+        context.drawText(this.textRenderer, Text.literal("Tracer thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
         drawThicknessSlider(context, mouseX, mouseY);
-        context.drawText(this.textRenderer, Text.literal("Color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
+
+        context.drawText(this.textRenderer, Text.literal("Tracer color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
         drawColorPicker(context);
-
-        context.fill(svRect.x + svRect.w + 26, svRect.y + 10, svRect.x + svRect.w + 96, svRect.y + 34, 0xFF000000);
-        context.fill(svRect.x + svRect.w + 27, svRect.y + 11, svRect.x + svRect.w + 95, svRect.y + 33, 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF));
-        context.drawText(this.textRenderer, Text.literal(hexColor()), svRect.x + svRect.w + 26, svRect.y + 42, 0xFFC4CCD9, false);
-
-        context.drawText(this.textRenderer, Text.literal("Presets"), generalPresetCard.x + 12, generalPresetCard.y + 12, 0xFFEAF0F7, false);
-        drawWrappedText(context, Text.literal("Manage entity life presets in the same window."), generalPresetCard.x + 12, generalPresetCard.y + 30, generalPresetCard.w - 24, 0xFF9AA3AF);
-        drawActionButton(context, openPresetsRect, "Presets", mouseX, mouseY, accentMuted, accentDark);
+        context.drawText(this.textRenderer, Text.literal(hexColor()), svRect.x + svRect.w + 24, svRect.y + 6, 0xFFC4CCD9, false);
+        context.fill(svRect.x + svRect.w + 24, svRect.y + 24, svRect.x + svRect.w + 96, svRect.y + 48, 0xFF000000);
+        context.fill(svRect.x + svRect.w + 25, svRect.y + 25, svRect.x + svRect.w + 95, svRect.y + 47, 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF));
     }
 
-    private void drawPresetPage(DrawContext context, int mouseX, int mouseY, int accentColor, int accentMuted, int accentDark) {
-        context.drawText(this.textRenderer, Text.literal("Presets"), presetListCard.x + 12, presetListCard.y + 12, 0xFFEAF0F7, false);
-        drawWrappedText(context, Text.literal("Select a preset, then edit the entity life values on the right."), presetListCard.x + 12, presetListCard.y + 30, presetListCard.w - 24, 0xFF9AA3AF);
+    private void drawPresetsTree(DrawContext context, int mouseX, int mouseY, int accentColor) {
+        treeRows.clear();
 
-        int start = presetPage * PRESETS_PER_PAGE;
-        int end = Math.min(TrevorAddonsClient.CONFIG.presets.size(), start + PRESETS_PER_PAGE);
-        presetRows = new Rect[end - start];
-        int rowY = presetListCard.y + 54;
-        for (int i = start; i < end; i++) {
-            Rect row = new Rect(presetListCard.x + 12, rowY, presetListCard.w - 24, 24);
-            presetRows[i - start] = row;
-            TrevorConfig.Preset preset = TrevorAddonsClient.CONFIG.presets.get(i);
-            boolean selected = i == selectedPresetIndex;
-            boolean active = preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
-            int fill = selected ? 0xFF314153 : 0xFF222A34;
-            if (active) fill = 0xFF2B3B2E;
-            if (row.contains(mouseX, mouseY)) fill = scaleRgb(fill, 1.08f);
+        int bodyX = presetsBodyRect.x;
+        int bodyY = presetsBodyRect.y;
+        int bodyW = presetsBodyRect.w;
+        int y = bodyY - treeScroll;
 
-            context.fill(row.x, row.y, row.x + row.w, row.y + row.h, fill);
-            context.drawText(this.textRenderer, trim(preset.name, row.w - 92), row.x + 10, row.y + 7, 0xFFEAF0F7, false);
-            String state = active ? "Active" : (preset.editable ? "Custom" : "Default");
-            context.drawText(this.textRenderer, Text.literal(state), row.x + row.w - 54, row.y + 7, active ? 0xFFB6F5C1 : 0xFF9AA3AF, false);
-            rowY += 26;
-        }
+        List<TrevorConfig.Preset> presets = TrevorAddonsClient.CONFIG.presets;
+        for (int presetIndex = 0; presetIndex < presets.size(); presetIndex++) {
+            TrevorConfig.Preset preset = presets.get(presetIndex);
+            boolean presetExpanded = isExpandedPreset(preset.id) || preset.id.equals(selectedPresetId);
+            TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX, y, bodyW, 26);
+            presetRow.title = preset.name;
+            presetRow.subtitle = preset.id.equals(TrevorConfig.DEFAULT_PRESET_ID) ? "Default preset" : "Custom preset";
+            presetRow.expanded = presetExpanded;
+            presetRow.selected = selectionKind == SelectionKind.PRESET && preset.id.equals(selectedPresetId);
+            presetRow.active = preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
+            presetRow.editable = preset.editable;
+            presetRow.canAdd = preset.editable;
+            presetRow.canDelete = preset.editable;
+            presetRow.canUse = !preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
+            presetRow.depth = 0;
+            treeRows.add(presetRow);
+            y += drawTreeRow(context, presetRow, mouseX, mouseY, accentColor, bodyX, bodyW);
 
-        prevPageRect = new Rect(presetListCard.x + 12, presetListCard.y + presetListCard.h - 26, 40, 18);
-        nextPageRect = new Rect(presetListCard.x + 58, presetListCard.y + presetListCard.h - 26, 40, 18);
-        drawSmallButton(context, prevPageRect, "<", mouseX, mouseY);
-        drawSmallButton(context, nextPageRect, ">", mouseX, mouseY);
-        context.drawText(this.textRenderer, Text.literal((presetPage + 1) + "/" + Math.max(1, ((TrevorAddonsClient.CONFIG.presets.size() - 1) / PRESETS_PER_PAGE) + 1)), presetListCard.x + 106, presetListCard.y + presetListCard.h - 20, 0xFF9AA3AF, false);
-
-        newPresetRect = new Rect(presetListCard.x + 12, presetListCard.y + presetListCard.h - 56, 62, 20);
-        duplicatePresetRect = new Rect(presetListCard.x + 80, presetListCard.y + presetListCard.h - 56, 72, 20);
-        deletePresetRect = new Rect(presetListCard.x + 158, presetListCard.y + presetListCard.h - 56, 52, 20);
-        usePresetRect = new Rect(presetListCard.x + 12, presetListCard.y + presetListCard.h - 30, 110, 20);
-        drawSmallButton(context, newPresetRect, "New", mouseX, mouseY);
-        drawSmallButton(context, duplicatePresetRect, "Copy", mouseX, mouseY);
-        drawSmallButton(context, deletePresetRect, "Del", mouseX, mouseY);
-        drawSmallButton(context, usePresetRect, "Use Selected", mouseX, mouseY);
-
-        context.drawText(this.textRenderer, Text.literal("Entities"), entityListCard.x + 12, entityListCard.y + 12, 0xFFEAF0F7, false);
-        drawWrappedText(context, Text.literal("Pick one entity and edit its life values."), entityListCard.x + 12, entityListCard.y + 30, entityListCard.w - 24, 0xFF9AA3AF);
-
-        entityRows = new Rect[ENTITY_KEYS.length];
-        int entityRowY = entityListCard.y + 54;
-        for (int i = 0; i < ENTITY_KEYS.length; i++) {
-            Rect row = new Rect(entityListCard.x + 12, entityRowY, entityListCard.w - 24, 24);
-            entityRows[i] = row;
-            boolean selected = i == selectedEntityIndex;
-            int fill = selected ? 0xFF314153 : 0xFF222A34;
-            if (row.contains(mouseX, mouseY)) fill = scaleRgb(fill, 1.08f);
-            context.fill(row.x, row.y, row.x + row.w, row.y + row.h, fill);
-            TrevorConfig.EntityRule rule = selectedPreset().getRule(ENTITY_KEYS[i]);
-            context.drawText(this.textRenderer, Text.literal(trim(ENTITY_LABELS[i], row.w - 130)), row.x + 10, row.y + 7, 0xFFEAF0F7, false);
-            context.drawText(this.textRenderer, trim(formatLives(rule.healthValues), 106), row.x + row.w - 116, row.y + 7, 0xFF9AA3AF, false);
-            entityRowY += 26;
-        }
-
-        context.drawText(this.textRenderer, Text.literal("Editor"), presetEditorCard.x + 12, presetEditorCard.y + 12, 0xFFEAF0F7, false);
-        drawWrappedText(context, Text.literal("Edit the selected entity's life list."), presetEditorCard.x + 12, presetEditorCard.y + 30, presetEditorCard.w - 24, 0xFF9AA3AF);
-
-        TrevorConfig.Preset preset = selectedPreset();
-        TrevorConfig.EntityRule rule = selectedRule();
-        context.drawText(this.textRenderer, Text.literal(trim("Selected: " + ENTITY_LABELS[selectedEntityIndex], presetEditorCard.w - 24)), presetEditorCard.x + 12, presetEditorCard.y + 52, 0xFFEAF0F7, false);
-        context.drawText(this.textRenderer, Text.literal(preset.editable ? "Editable preset" : "Locked Default preset"), presetEditorCard.x + 12, presetEditorCard.y + 66, preset.editable ? 0xFF9AA3AF : 0xFFB6A0A0, false);
-
-        context.drawText(this.textRenderer, Text.literal("Values"), presetEditorCard.x + 12, presetEditorCard.y + 88, 0xFFD5DBE5, false);
-        valueChipRects = drawValueChips(context, presetEditorCard.x + 12, presetEditorCard.y + 106, presetEditorCard.w - 24, rule.healthValues, mouseX, mouseY);
-
-        context.drawText(this.textRenderer, Text.literal("Input"), presetEditorCard.x + 12, presetEditorCard.y + 162, 0xFFD5DBE5, false);
-        lifeFieldRect = new Rect(presetEditorCard.x + 12, presetEditorCard.y + 180, presetEditorCard.w - 24, 22);
-        boolean focused = lifeFieldFocused || lifeFieldRect.contains(mouseX, mouseY);
-        context.fill(lifeFieldRect.x, lifeFieldRect.y, lifeFieldRect.x + lifeFieldRect.w, lifeFieldRect.y + lifeFieldRect.h, focused ? 0xFF2D3745 : 0xFF222A34);
-        String placeholder = "Type values separated by commas";
-        context.drawText(this.textRenderer, Text.literal(trim(lifeInput.isEmpty() ? placeholder : lifeInput, lifeFieldRect.w - 20)), lifeFieldRect.x + 10, lifeFieldRect.y + 7, lifeInput.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
-
-        replaceRect = new Rect(presetEditorCard.x + 12, presetEditorCard.y + 212, 66, 20);
-        appendRect = new Rect(presetEditorCard.x + 84, presetEditorCard.y + 212, 54, 20);
-        clearRect = new Rect(presetEditorCard.x + 144, presetEditorCard.y + 212, 54, 20);
-        resetRect = new Rect(presetEditorCard.x + 204, presetEditorCard.y + 212, 54, 20);
-        drawSmallButton(context, replaceRect, "Set", mouseX, mouseY);
-        drawSmallButton(context, appendRect, "Add", mouseX, mouseY);
-        drawSmallButton(context, clearRect, "Clear", mouseX, mouseY);
-        drawSmallButton(context, resetRect, "Reset", mouseX, mouseY);
-
-        context.drawText(this.textRenderer, Text.literal("Quick add"), presetEditorCard.x + 12, presetEditorCard.y + 242, 0xFFD5DBE5, false);
-        quickAddRects = new Rect[QUICK_VALUES.length];
-        for (int i = 0; i < QUICK_VALUES.length; i++) {
-            Rect rect = new Rect(presetEditorCard.x + 12 + (i * 66), presetEditorCard.y + 260, 60, 20);
-            quickAddRects[i] = rect;
-            drawSmallButton(context, rect, formatLife(QUICK_VALUES[i]), mouseX, mouseY);
-        }
-
-        if (!preset.editable) {
-            context.drawText(this.textRenderer, Text.literal("The Default preset is locked."), presetEditorCard.x + 12, presetEditorCard.y + presetEditorCard.h - 18, 0xFF9AA3AF, false);
-        }
-    }
-
-    private Rect[] drawValueChips(DrawContext context, int left, int top, int width, List<Double> values, int mouseX, int mouseY) {
-        if (values == null || values.isEmpty()) {
-            context.drawText(this.textRenderer, Text.literal("No values set."), left, top + 2, 0xFF758197, false);
-            return new Rect[0];
-        }
-
-        List<Rect> rects = new ArrayList<>();
-        int x = left;
-        int y = top;
-        for (Double value : values) {
-            String label = formatLife(value);
-            int chipW = Math.max(38, this.textRenderer.getWidth(label) + 16);
-            if (x + chipW > left + width) {
-                x = left;
-                y += 24;
+            if (!presetExpanded) {
+                y += 4;
+                continue;
             }
 
-            Rect chip = new Rect(x, y, chipW, 18);
-            rects.add(chip);
-            boolean hover = chip.contains(mouseX, mouseY);
-            context.fill(chip.x, chip.y, chip.x + chip.w, chip.y + chip.h, hover ? 0xFF324153 : 0xFF262F3A);
-            context.drawText(this.textRenderer, Text.literal(label), chip.x + 8, chip.y + 5, 0xFFEAF0F7, false);
-            x += chipW + 6;
+            for (int entityIndex = 0; entityIndex < preset.entities.size(); entityIndex++) {
+                TrevorConfig.EntityRule rule = preset.entities.get(entityIndex);
+                boolean entityExpanded = isExpandedEntity(preset.id, entityIndex);
+                TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 18, y, bodyW - 18, 24);
+                entityRow.title = "Mob " + (entityIndex + 1);
+                entityRow.subtitle = rule.name;
+                entityRow.expanded = entityExpanded;
+                entityRow.selected = selectionKind == SelectionKind.ENTITY && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex;
+                entityRow.editable = preset.editable;
+                entityRow.canAdd = preset.editable;
+                entityRow.canDelete = preset.editable && preset.entities.size() > 1;
+                entityRow.depth = 1;
+                treeRows.add(entityRow);
+                y += drawTreeRow(context, entityRow, mouseX, mouseY, accentColor, bodyX + 18, bodyW - 18);
+
+                if (!entityExpanded) {
+                    y += 3;
+                    continue;
+                }
+
+                List<Double> lives = rule.healthValues;
+                for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
+                    TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 36, y, bodyW - 36, 20);
+                    lifeRow.title = formatLife(lives.get(lifeIndex));
+                    lifeRow.subtitle = "";
+                    lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
+                    lifeRow.editable = preset.editable;
+                    lifeRow.canDelete = preset.editable;
+                    lifeRow.depth = 2;
+                    treeRows.add(lifeRow);
+                    y += drawTreeRow(context, lifeRow, mouseX, mouseY, accentColor, bodyX + 36, bodyW - 36);
+                }
+                y += 3;
+            }
+            y += 4;
         }
 
-        return rects.toArray(new Rect[0]);
+        treeContentHeight = Math.max(0, y - bodyY + treeScroll);
+        treeScroll = clampInt(treeScroll, 0, Math.max(0, treeContentHeight - presetsBodyRect.h));
     }
 
-    private void drawTab(DrawContext context, Rect rect, String label, boolean selected, int mouseX, int mouseY, int accentColor) {
+    private int drawTreeRow(DrawContext context, TreeRow row, int mouseX, int mouseY, int accentColor, int startX, int width) {
+        row.rect = new Rect(startX, row.y, width, row.h);
+        boolean hover = row.rect.contains(mouseX, mouseY);
+
+        int base = row.depth == 0 ? 0xFF222A34 : (row.depth == 1 ? 0xFF1F2731 : 0xFF1B222B);
+        if (row.active) {
+            base = 0xFF24322A;
+        }
+        if (row.selected) {
+            base = 0xFF314153;
+        } else if (hover) {
+            base = scaleRgb(base, 1.08f);
+        }
+
+        context.fill(row.rect.x, row.rect.y, row.rect.x + row.rect.w, row.rect.y + row.rect.h, base);
+        context.fill(row.rect.x, row.rect.y, row.rect.x + 3, row.rect.y + row.rect.h, accentColor);
+        context.fill(row.rect.x, row.rect.y, row.rect.x + row.rect.w, row.rect.y + 1, 0xFF10151B);
+        context.fill(row.rect.x, row.rect.y + row.rect.h - 1, row.rect.x + row.rect.w, row.rect.y + row.rect.h, 0xFF10151B);
+
+        row.toggleRect = new Rect(row.rect.x + 6, row.rect.y + 4, 16, row.rect.h - 8);
+        row.addRect = new Rect(row.rect.x + row.rect.w - 34, row.rect.y + 3, 14, row.rect.h - 6);
+        row.deleteRect = new Rect(row.rect.x + row.rect.w - 18, row.rect.y + 3, 14, row.rect.h - 6);
+        row.useRect = new Rect(row.rect.x + row.rect.w - 54, row.rect.y + 3, 18, row.rect.h - 6);
+
+        if (row.kind == TreeKind.PRESET || row.kind == TreeKind.ENTITY) {
+            context.drawText(this.textRenderer, Text.literal(row.expanded ? "v" : ">"), row.toggleRect.x + 1, row.toggleRect.y + 3, 0xFFEAF0F7, false);
+        }
+
+        int titleX = row.rect.x + 28;
+        int titleW = row.rect.w - 90;
+        context.drawText(this.textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+        if (!row.subtitle.isEmpty()) {
+            context.drawText(this.textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
+        }
+
+        if (row.kind == TreeKind.PRESET) {
+            if (row.active) {
+                drawChip(context, row.useRect, "Active", 0xFF2B3B2E);
+            } else {
+                drawSmallButton(context, row.useRect, "Use", mouseX, mouseY, 0xFF324153, 0xFF222A34);
+            }
+            if (row.canAdd) {
+                drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
+            }
+            if (row.canDelete) {
+                drawSmallButton(context, row.deleteRect, "x", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+            }
+        } else if (row.kind == TreeKind.ENTITY) {
+            if (row.canAdd) {
+                drawSmallButton(context, row.addRect, "+", mouseX, mouseY, 0xFF324153, 0xFF222A34);
+            }
+            if (row.canDelete) {
+                drawSmallButton(context, row.deleteRect, "x", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+            }
+        } else if (row.kind == TreeKind.LIFE) {
+            if (row.canDelete) {
+                drawSmallButton(context, row.deleteRect, "x", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+            }
+        }
+
+        return row.rect.h + 3;
+    }
+
+    private void drawFooterEditor(DrawContext context, int mouseX, int mouseY, int accentColor, int accentMuted, int accentDark) {
+        int footerX = footerRect.x;
+        int footerY = footerRect.y;
+        int footerW = footerRect.w;
+
+        context.fill(footerX, footerY, footerX + footerW, footerY + footerRect.h, 0xFF171C24);
+        context.fill(footerX, footerY, footerX + footerW, footerY + 1, 0xFF10151B);
+        context.drawText(this.textRenderer, Text.literal("Editor"), footerX + 12, footerY + 8, 0xFFEAF0F7, false);
+
+        String selectedLabel = selectedSelectionLabel();
+        context.drawText(this.textRenderer, Text.literal(trim(selectedLabel, footerW - 180)), footerX + 12, footerY + 22, 0xFF9AA3AF, false);
+
+        inputRect = new Rect(footerX + 12, footerY + 38, footerW - 24, 20);
+        boolean focused = inputFocused || inputRect.contains(mouseX, mouseY);
+        context.fill(inputRect.x, inputRect.y, inputRect.x + inputRect.w, inputRect.y + inputRect.h, focused ? 0xFF2D3745 : 0xFF222A34);
+        String placeholder = selectionKind == SelectionKind.LIFE ? "Type a value or *" : "Type values separated by commas, or *";
+        context.drawText(this.textRenderer, Text.literal(trim(inputText.isEmpty() ? placeholder : inputText, inputRect.w - 20)), inputRect.x + 10, inputRect.y + 6, inputText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
+
+        setRect = new Rect(footerX + 12, footerY + 64, 46, 18);
+        addRect = new Rect(footerX + 62, footerY + 64, 46, 18);
+        wildcardRect = new Rect(footerX + 112, footerY + 64, 28, 18);
+        deleteRect = new Rect(footerX + 144, footerY + 64, 46, 18);
+        useRect = new Rect(footerX + footerW - 66, footerY + 64, 54, 18);
+
+        drawSmallButton(context, setRect, "Set", mouseX, mouseY, accentMuted, accentDark);
+        drawSmallButton(context, addRect, "Add", mouseX, mouseY, accentMuted, accentDark);
+        drawSmallButton(context, wildcardRect, "*", mouseX, mouseY, accentMuted, accentDark);
+        drawSmallButton(context, deleteRect, "Del", mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+        if (selectionKind == SelectionKind.PRESET) {
+            drawSmallButton(context, useRect, "Use", mouseX, mouseY, accentMuted, accentDark);
+        } else {
+            drawSmallButton(context, useRect, "Reset", mouseX, mouseY, accentMuted, accentDark);
+        }
+    }
+
+    private void drawSectionHeader(DrawContext context, Rect rect, String label, boolean expanded, int mouseX, int mouseY, int accentColor) {
         boolean hover = rect.contains(mouseX, mouseY);
-        int fill = selected ? accentColor : (hover ? 0xFF2A333F : 0xFF222A34);
-        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, fill);
-        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 20)), rect.x + 10, rect.y + 5, 0xFFFFFFFF, false);
-    }
-
-    private void drawChip(DrawContext context, int x, int y, int w, int h, String label, int fill) {
-        context.fill(x, y, x + w, y + h, fill);
-        context.drawText(this.textRenderer, Text.literal(trim(label, w - 16)), x + 8, y + 6, 0xFFFFFFFF, false);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF222A34 : 0xFF1B212A);
+        context.fill(rect.x, rect.y, rect.x + 4, rect.y + rect.h, accentColor);
+        context.drawText(this.textRenderer, Text.literal(expanded ? "v" : ">"), rect.x + 10, rect.y + 6, 0xFFEAF0F7, false);
+        context.drawText(this.textRenderer, Text.literal(label), rect.x + 28, rect.y + 6, 0xFFEAF0F7, false);
+        if (rect == presetsHeaderRect) {
+            context.drawText(this.textRenderer, Text.literal(trim(TrevorAddonsClient.CONFIG.getActivePresetName(), 120)), rect.x + rect.w - 140, rect.y + 6, 0xFF9AA3AF, false);
+        }
     }
 
     private void drawToggle(DrawContext context, Rect rect, String label, boolean value, int mouseX, int mouseY) {
@@ -607,22 +588,427 @@ public class TrevorSettingsScreen extends Screen {
     }
 
     private void drawActionButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY, int hoverColor, int baseColor) {
-        boolean hover = rect.contains(mouseX, mouseY);
-        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
-        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 20)), rect.x + 10, rect.y + 5, 0xFFFFFFFF, false);
+        drawSmallButton(context, rect, label, mouseX, mouseY, hoverColor, baseColor);
     }
 
-    private void drawSmallButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY) {
+    private void drawSmallButton(DrawContext context, Rect rect, String label, int mouseX, int mouseY, int hoverColor, int baseColor) {
         boolean hover = rect.contains(mouseX, mouseY);
-        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? 0xFF314153 : 0xFF222A34);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? hoverColor : baseColor);
         context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 5, 0xFFFFFFFF, false);
+    }
+
+    private void drawChip(DrawContext context, Rect rect, String label, int fill) {
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, fill);
+        context.drawText(this.textRenderer, Text.literal(trim(label, rect.w - 16)), rect.x + 8, rect.y + 6, 0xFFFFFFFF, false);
+    }
+
+    private void addPreset() {
+        TrevorConfig.Preset copy = TrevorAddonsClient.CONFIG.duplicatePreset(TrevorConfig.DEFAULT_PRESET_ID);
+        TrevorAddonsClient.CONFIG.save();
+        selectedPresetId = copy.id;
+        selectionKind = SelectionKind.PRESET;
+        selectedEntityIndex = 0;
+        selectedLifeIndex = -1;
+        expandedPresetIds.add(copy.id);
+        syncInputFromSelection();
+        statusMessage = "Created " + copy.name + ".";
+        markConfigDirty();
+    }
+
+    private void addMobToSelectedPreset() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be edited.";
+            return;
+        }
+        TrevorConfig.EntityRule source = preset.entities.isEmpty() ? TrevorConfig.createDefaultPreset().entities.get(0) : selectedEntity() != null ? selectedEntity().copy() : preset.entities.get(0).copy();
+        source.name = source.name + " " + (preset.entities.size() + 1);
+        preset.entities.add(source);
+        selectedEntityIndex = preset.entities.size() - 1;
+        selectedLifeIndex = -1;
+        selectionKind = SelectionKind.ENTITY;
+        expandedPresetIds.add(preset.id);
+        expandedEntityIds.add(entityKey(preset.id, selectedEntityIndex));
+        TrevorAddonsClient.CONFIG.save();
+        syncInputFromSelection();
+        statusMessage = source.name + " added.";
+    }
+
+    private void addLifeToSelectedEntity() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be edited.";
+            return;
+        }
+        TrevorConfig.EntityRule rule = selectedEntity();
+        if (rule == null) {
+            statusMessage = "Select a mob first.";
+            return;
+        }
+        if (!containsValue(rule.healthValues, Double.NaN)) {
+            rule.healthValues.add(Double.NaN);
+            sortValues(rule.healthValues);
+        }
+        selectedLifeIndex = rule.healthValues.size() - 1;
+        selectionKind = SelectionKind.LIFE;
+        TrevorAddonsClient.CONFIG.save();
+        syncInputFromSelection();
+        statusMessage = "Added *.";
+    }
+
+    private void applyInput(boolean append) {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be edited.";
+            return;
+        }
+        TrevorConfig.EntityRule rule = selectedEntity();
+        if (rule == null) {
+            statusMessage = "Select a mob first.";
+            return;
+        }
+        List<Double> parsed = parseLifeValues(inputText);
+        if (parsed.isEmpty()) {
+            statusMessage = "Enter at least one value.";
+            return;
+        }
+
+        if (selectionKind == SelectionKind.LIFE && !append) {
+            Double valueToUse = parsed.get(0);
+            if (selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
+                rule.healthValues.set(selectedLifeIndex, valueToUse);
+            } else {
+                rule.healthValues.add(valueToUse);
+            }
+            sortValues(rule.healthValues);
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "Life updated.";
+            return;
+        }
+
+        if (append) {
+            for (Double value : parsed) {
+                if (!containsValue(rule.healthValues, value)) {
+                    rule.healthValues.add(value);
+                }
+            }
+            sortValues(rule.healthValues);
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "Values added.";
+            return;
+        }
+
+        rule.healthValues = new ArrayList<>(parsed);
+        sortValues(rule.healthValues);
+        TrevorAddonsClient.CONFIG.save();
+        syncInputFromSelection();
+        statusMessage = "Values replaced.";
+    }
+
+    private void applyWildcard() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be edited.";
+            return;
+        }
+        TrevorConfig.EntityRule rule = selectedEntity();
+        if (rule == null) {
+            statusMessage = "Select a mob first.";
+            return;
+        }
+        if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
+            rule.healthValues.set(selectedLifeIndex, Double.NaN);
+            sortValues(rule.healthValues);
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "Life set to *.";
+            return;
+        }
+        if (!containsValue(rule.healthValues, Double.NaN)) {
+            rule.healthValues.add(Double.NaN);
+            sortValues(rule.healthValues);
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "* added.";
+        }
+    }
+
+    private void deleteSelection() {
+        if (selectionKind == SelectionKind.PRESET) {
+            TrevorConfig.Preset preset = selectedPreset();
+            if (preset == null || !preset.editable) {
+                statusMessage = "Default preset cannot be deleted.";
+                return;
+            }
+            TrevorAddonsClient.CONFIG.deletePreset(preset.id);
+            TrevorAddonsClient.CONFIG.save();
+            syncSelectionToConfig();
+            syncInputFromSelection();
+            statusMessage = "Preset deleted.";
+            return;
+        }
+
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be edited.";
+            return;
+        }
+        TrevorConfig.EntityRule rule = selectedEntity();
+        if (rule == null) {
+            return;
+        }
+
+        if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
+            rule.healthValues.remove(selectedLifeIndex);
+            selectedLifeIndex = Math.min(selectedLifeIndex, Math.max(0, rule.healthValues.size() - 1));
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "Life removed.";
+            return;
+        }
+
+        if (selectionKind == SelectionKind.ENTITY && preset.entities.size() > 1) {
+            preset.entities.remove(selectedEntityIndex);
+            selectedEntityIndex = Math.max(0, Math.min(selectedEntityIndex, preset.entities.size() - 1));
+            selectedLifeIndex = -1;
+            TrevorAddonsClient.CONFIG.save();
+            syncInputFromSelection();
+            statusMessage = "Mob removed.";
+        }
+    }
+
+    private void useSelectedPreset() {
+        if (selectionKind == SelectionKind.PRESET) {
+            TrevorAddonsClient.CONFIG.setActivePreset(selectedPresetId);
+            TrevorAddonsClient.CONFIG.save();
+            statusMessage = "Active preset updated.";
+            return;
+        }
+        resetSelectedEntityToDefault();
+    }
+
+    private void resetSelectedEntityToDefault() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null || !preset.editable) {
+            statusMessage = "Default preset cannot be edited.";
+            return;
+        }
+        TrevorConfig.EntityRule current = selectedEntity();
+        if (current == null) {
+            statusMessage = "Select a mob first.";
+            return;
+        }
+
+        String entityId = current.id;
+        TrevorConfig.Preset defaults = TrevorConfig.createDefaultPreset();
+        TrevorConfig.EntityRule defaultRule = null;
+        for (TrevorConfig.EntityRule rule : defaults.entities) {
+            if (entityId.equals(rule.id)) {
+                defaultRule = rule;
+                break;
+            }
+        }
+        if (defaultRule == null) {
+            defaultRule = defaults.entities.isEmpty() ? new TrevorConfig.EntityRule(entityId, current.name, List.of()) : defaults.entities.get(0);
+        }
+        current.healthValues = new ArrayList<>(defaultRule.healthValues);
+        TrevorAddonsClient.CONFIG.save();
+        syncInputFromSelection();
+        statusMessage = current.name + " reset.";
+    }
+
+    private void selectRow(TreeRow row) {
+        TrevorConfig.Preset preset = presetAt(row.presetIndex);
+        if (preset == null) return;
+        selectedPresetId = preset.id;
+
+        if (row.kind == TreeKind.PRESET) {
+            selectionKind = SelectionKind.PRESET;
+            selectedEntityIndex = 0;
+            selectedLifeIndex = -1;
+        } else if (row.kind == TreeKind.ENTITY) {
+            selectionKind = SelectionKind.ENTITY;
+            selectedEntityIndex = row.entityIndex;
+            selectedLifeIndex = -1;
+        } else {
+            selectionKind = SelectionKind.LIFE;
+            selectedEntityIndex = row.entityIndex;
+            selectedLifeIndex = row.lifeIndex;
+        }
+        syncInputFromSelection();
+    }
+
+    private void toggleRow(TreeRow row) {
+        TrevorConfig.Preset preset = presetAt(row.presetIndex);
+        if (preset == null) return;
+        if (row.kind == TreeKind.PRESET) {
+            if (isExpandedPreset(preset.id)) {
+                expandedPresetIds.remove(preset.id);
+            } else {
+                expandedPresetIds.add(preset.id);
+            }
+            return;
+        }
+        if (row.kind == TreeKind.ENTITY) {
+            String key = entityKey(preset.id, row.entityIndex);
+            if (isExpandedEntity(preset.id, row.entityIndex)) {
+                expandedEntityIds.remove(key);
+            } else {
+                expandedEntityIds.add(key);
+            }
+        }
+    }
+
+    private void handleRowPlus(TreeRow row) {
+        if (row.kind == TreeKind.PRESET) {
+            selectRow(row);
+            addMobToSelectedPreset();
+        } else if (row.kind == TreeKind.ENTITY) {
+            selectRow(row);
+            addLifeToSelectedEntity();
+        }
+    }
+
+    private void handleRowDelete(TreeRow row) {
+        selectRow(row);
+        deleteSelection();
+    }
+
+    private void syncSelectionToConfig() {
+        selectedPresetId = TrevorAddonsClient.CONFIG.activePresetId;
+        if (presetAt(selectedPresetId) == null) {
+            selectedPresetId = TrevorConfig.DEFAULT_PRESET_ID;
+        }
+        selectedEntityIndex = clampInt(selectedEntityIndex, 0, Math.max(0, selectedPreset().entities.size() - 1));
+        selectedLifeIndex = -1;
+        selectionKind = SelectionKind.PRESET;
+        expandedPresetIds.add(selectedPresetId);
+    }
+
+    private void syncInputFromSelection() {
+        TrevorConfig.EntityRule rule = selectedEntity();
+        if (selectionKind == SelectionKind.LIFE && rule != null && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
+            inputText = formatLife(rule.healthValues.get(selectedLifeIndex));
+            return;
+        }
+        if (rule != null && (selectionKind == SelectionKind.ENTITY || selectionKind == SelectionKind.LIFE)) {
+            inputText = formatLives(rule.healthValues);
+            return;
+        }
+        inputText = "";
+    }
+
+    private TrevorConfig.Preset selectedPreset() {
+        return presetAt(selectedPresetId);
+    }
+
+    private TrevorConfig.Preset presetAt(String presetId) {
+        if (presetId == null) return null;
+        for (TrevorConfig.Preset preset : TrevorAddonsClient.CONFIG.presets) {
+            if (presetId.equals(preset.id)) {
+                return preset;
+            }
+        }
+        return null;
+    }
+
+    private TrevorConfig.Preset presetAt(int index) {
+        if (index < 0 || index >= TrevorAddonsClient.CONFIG.presets.size()) {
+            return null;
+        }
+        return TrevorAddonsClient.CONFIG.presets.get(index);
+    }
+
+    private TrevorConfig.EntityRule selectedEntity() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null) return null;
+        if (selectedEntityIndex < 0 || selectedEntityIndex >= preset.entities.size()) return null;
+        return preset.entities.get(selectedEntityIndex);
+    }
+
+    private String selectedSelectionLabel() {
+        TrevorConfig.Preset preset = selectedPreset();
+        if (preset == null) {
+            return "Nothing selected";
+        }
+        if (selectionKind == SelectionKind.PRESET) {
+            return "Preset: " + preset.name;
+        }
+        TrevorConfig.EntityRule rule = selectedEntity();
+        if (rule == null) {
+            return "Preset: " + preset.name;
+        }
+        if (selectionKind == SelectionKind.ENTITY) {
+            return "Mob: " + rule.name;
+        }
+        return "Life: " + formatLife(selectedLifeValue(rule));
+    }
+
+    private Double selectedLifeValue(TrevorConfig.EntityRule rule) {
+        if (rule == null || selectedLifeIndex < 0 || selectedLifeIndex >= rule.healthValues.size()) {
+            return null;
+        }
+        return rule.healthValues.get(selectedLifeIndex);
+    }
+
+    private boolean isExpandedPreset(String presetId) {
+        return expandedPresetIds.contains(presetId);
+    }
+
+    private boolean isExpandedEntity(String presetId, int entityIndex) {
+        return expandedEntityIds.contains(entityKey(presetId, entityIndex));
+    }
+
+    private String entityKey(String presetId, int entityIndex) {
+        return presetId + ":" + entityIndex;
+    }
+
+    private void rebuildTree() {
+        if (!treeNeedsRefresh) return;
+        treeNeedsRefresh = false;
+    }
+
+    private void updateLayout() {
+        int panelLeft = this.width / 2 - WINDOW_W / 2;
+        int panelTop = this.height / 2 - WINDOW_H / 2;
+
+        closeRect = new Rect(panelLeft + WINDOW_W - 100, panelTop + WINDOW_H - 28, 88, 18);
+        activePresetChipRect = new Rect(panelLeft + WINDOW_W - 188, panelTop + 14, 172, 20);
+
+        visualsToggleRect = new Rect(panelLeft + 12, panelTop + 52, WINDOW_W - 24, 22);
+        visualsHeaderRect = visualsToggleRect;
+        visualsBodyRect = new Rect(panelLeft + 12, panelTop + 76, WINDOW_W - 24, 142);
+
+        presetsToggleRect = new Rect(panelLeft + 12, panelTop + 226, WINDOW_W - 24, 22);
+        presetsHeaderRect = presetsToggleRect;
+        presetsAddRect = new Rect(panelLeft + WINDOW_W - 42, panelTop + 229, 16, 16);
+        presetsBodyRect = new Rect(panelLeft + 12, panelTop + 250, WINDOW_W - 24, 146);
+        footerRect = new Rect(panelLeft + 12, panelTop + 398, WINDOW_W - 24, 64);
+
+        espToggleRect = new Rect(visualsBodyRect.x + 12, visualsBodyRect.y + 14, 210, 24);
+        tracerToggleRect = new Rect(visualsBodyRect.x + 12, visualsBodyRect.y + 42, 210, 24);
+        thicknessTrackRect = new Rect(visualsBodyRect.x + 12, visualsBodyRect.y + 82, 184, 16);
+        svRect = new Rect(visualsBodyRect.x + 220, visualsBodyRect.y + 14, 160, 116);
+        hueRect = new Rect(visualsBodyRect.x + 388, visualsBodyRect.y + 14, 14, 116);
+    }
+
+    private void markConfigDirty() {
+        configDirty = true;
+        treeNeedsRefresh = true;
+    }
+
+    private void flushConfigIfDirty() {
+        if (!configDirty) return;
+        TrevorAddonsClient.CONFIG.save();
+        configDirty = false;
     }
 
     private void updateThicknessFromMouse(double mouseX) {
         double t = (mouseX - thicknessTrackRect.x) / (double) thicknessTrackRect.w;
         t = clamp01(t);
-        double width = 1.0 + (9.0 * t);
-        TrevorAddonsClient.CONFIG.tracerLineWidth = Math.round(width * 10.0) / 10.0;
+        TrevorAddonsClient.CONFIG.tracerLineWidth = Math.round((1.0 + 9.0 * t) * 10.0) / 10.0;
         markConfigDirty();
     }
 
@@ -643,16 +1029,6 @@ public class TrevorSettingsScreen extends Screen {
     private void applyPickerToConfig() {
         TrevorAddonsClient.CONFIG.tracerLineColor = 0xFF000000 | hsvToRgb(hue, saturation, value);
         markConfigDirty();
-    }
-
-    private void markConfigDirty() {
-        configDirty = true;
-    }
-
-    private void flushConfigIfDirty() {
-        if (!configDirty) return;
-        TrevorAddonsClient.CONFIG.save();
-        configDirty = false;
     }
 
     private void syncPickerFromConfig() {
@@ -681,160 +1057,6 @@ public class TrevorSettingsScreen extends Screen {
         value = max;
     }
 
-    private void replaceValuesFromInput() {
-        TrevorConfig.Preset preset = selectedPreset();
-        if (!preset.editable) {
-            statusMessage = "Default preset cannot be edited.";
-            return;
-        }
-
-        List<Double> parsed = parseLifeValues(lifeInput);
-        if (parsed.isEmpty()) {
-            statusMessage = "Enter at least one numeric value.";
-            return;
-        }
-
-        selectedRule().healthValues = parsed;
-        TrevorAddonsClient.CONFIG.save();
-        syncLifeInputFromSelection();
-        statusMessage = ENTITY_LABELS[selectedEntityIndex] + " values updated.";
-    }
-
-    private void appendValuesFromInput() {
-        TrevorConfig.Preset preset = selectedPreset();
-        if (!preset.editable) {
-            statusMessage = "Default preset cannot be edited.";
-            return;
-        }
-
-        List<Double> parsed = parseLifeValues(lifeInput);
-        if (parsed.isEmpty()) {
-            statusMessage = "Enter at least one numeric value.";
-            return;
-        }
-
-        TrevorConfig.EntityRule rule = selectedRule();
-        for (Double value : parsed) {
-            if (!containsValue(rule.healthValues, value)) {
-                rule.healthValues.add(value);
-            }
-        }
-        sortValues(rule.healthValues);
-        TrevorAddonsClient.CONFIG.save();
-        syncLifeInputFromSelection();
-        lifeInput = "";
-        statusMessage = ENTITY_LABELS[selectedEntityIndex] + " values appended.";
-    }
-
-    private void addValue(double value) {
-        TrevorConfig.Preset preset = selectedPreset();
-        if (!preset.editable) {
-            statusMessage = "Default preset cannot be edited.";
-            return;
-        }
-
-        TrevorConfig.EntityRule rule = selectedRule();
-        if (!containsValue(rule.healthValues, value)) {
-            rule.healthValues.add(value);
-            sortValues(rule.healthValues);
-        }
-        TrevorAddonsClient.CONFIG.save();
-        syncLifeInputFromSelection();
-        statusMessage = formatLife(value) + " added.";
-    }
-
-    private void removeValueAt(int index) {
-        TrevorConfig.Preset preset = selectedPreset();
-        if (!preset.editable) {
-            statusMessage = "Default preset cannot be edited.";
-            return;
-        }
-        TrevorConfig.EntityRule rule = selectedRule();
-        if (index >= 0 && index < rule.healthValues.size()) {
-            rule.healthValues.remove(index);
-            TrevorAddonsClient.CONFIG.save();
-            syncLifeInputFromSelection();
-            statusMessage = "Value removed.";
-        }
-    }
-
-    private void clearValues() {
-        TrevorConfig.Preset preset = selectedPreset();
-        if (!preset.editable) {
-            statusMessage = "Default preset cannot be edited.";
-            return;
-        }
-        selectedRule().healthValues.clear();
-        TrevorAddonsClient.CONFIG.save();
-        syncLifeInputFromSelection();
-        statusMessage = "Values cleared.";
-    }
-
-    private void resetSelectedEntityToDefault() {
-        TrevorConfig.Preset preset = selectedPreset();
-        if (!preset.editable) {
-            statusMessage = "Default preset cannot be edited.";
-            return;
-        }
-
-        TrevorConfig.EntityRule defaultRule = TrevorConfig.createDefaultPreset().getRule(ENTITY_KEYS[selectedEntityIndex]);
-        selectedRule().healthValues = new ArrayList<>(defaultRule.healthValues);
-        TrevorAddonsClient.CONFIG.save();
-        syncLifeInputFromSelection();
-        statusMessage = ENTITY_LABELS[selectedEntityIndex] + " reset.";
-    }
-
-    private void syncSelectionToConfig() {
-        selectedPresetIndex = Math.max(0, indexOfPreset(TrevorAddonsClient.CONFIG.activePresetId));
-        presetPage = selectedPresetIndex / PRESETS_PER_PAGE;
-        clampSelectedPresetToPage();
-        selectedEntityIndex = Math.max(0, Math.min(selectedEntityIndex, ENTITY_KEYS.length - 1));
-    }
-
-    private void syncLifeInputFromSelection() {
-        lifeInput = formatLives(selectedRule().healthValues);
-    }
-
-    private void clampSelectedPresetToPage() {
-        int start = presetPage * PRESETS_PER_PAGE;
-        int end = Math.min(TrevorAddonsClient.CONFIG.presets.size() - 1, start + PRESETS_PER_PAGE - 1);
-        selectedPresetIndex = Math.max(start, Math.min(selectedPresetIndex, end));
-    }
-
-    private void selectPresetById(String presetId) {
-        int index = indexOfPreset(presetId);
-        if (index >= 0) {
-            selectedPresetIndex = index;
-            presetPage = selectedPresetIndex / PRESETS_PER_PAGE;
-        }
-    }
-
-    private int indexOfPreset(String presetId) {
-        for (int i = 0; i < TrevorAddonsClient.CONFIG.presets.size(); i++) {
-            if (presetId.equals(TrevorAddonsClient.CONFIG.presets.get(i).id)) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    private TrevorConfig.Preset selectedPreset() {
-        if (TrevorAddonsClient.CONFIG.presets.isEmpty()) {
-            return TrevorConfig.createDefaultPreset();
-        }
-        selectedPresetIndex = Math.max(0, Math.min(selectedPresetIndex, TrevorAddonsClient.CONFIG.presets.size() - 1));
-        return TrevorAddonsClient.CONFIG.presets.get(selectedPresetIndex);
-    }
-
-    private TrevorConfig.EntityRule selectedRule() {
-        TrevorConfig.Preset preset = selectedPreset();
-        TrevorConfig.EntityRule rule = preset.getRule(ENTITY_KEYS[selectedEntityIndex]);
-        if (rule == null && !preset.entities.isEmpty()) {
-            return preset.entities.get(Math.max(0, Math.min(selectedEntityIndex, preset.entities.size() - 1)));
-        }
-        return rule;
-    }
-
     private List<Double> parseLifeValues(String input) {
         List<Double> values = new ArrayList<>();
         if (input == null || input.isBlank()) {
@@ -844,6 +1066,10 @@ public class TrevorSettingsScreen extends Screen {
         String[] parts = input.split("[,\\s]+");
         for (String part : parts) {
             if (part.isBlank()) continue;
+            if ("*".equals(part.trim())) {
+                values.add(Double.NaN);
+                continue;
+            }
             try {
                 values.add(Double.parseDouble(part));
             } catch (NumberFormatException ignored) {
@@ -853,9 +1079,12 @@ public class TrevorSettingsScreen extends Screen {
         return values;
     }
 
-    private static boolean containsValue(List<Double> values, double candidate) {
+    private static boolean containsValue(List<Double> values, Double candidate) {
+        if (values == null) return false;
         for (Double value : values) {
-            if (value != null && Math.abs(value - candidate) < 0.01d) {
+            if (value == null || candidate == null) continue;
+            if (Double.isNaN(value) && Double.isNaN(candidate)) return true;
+            if (!Double.isNaN(value) && !Double.isNaN(candidate) && Math.abs(value - candidate) < 0.01d) {
                 return true;
             }
         }
@@ -863,7 +1092,14 @@ public class TrevorSettingsScreen extends Screen {
     }
 
     private static void sortValues(List<Double> values) {
-        values.sort(Double::compareTo);
+        values.sort((a, b) -> {
+            boolean an = a == null || Double.isNaN(a);
+            boolean bn = b == null || Double.isNaN(b);
+            if (an && bn) return 0;
+            if (an) return 1;
+            if (bn) return -1;
+            return Double.compare(a, b);
+        });
     }
 
     private static String formatLives(List<Double> values) {
@@ -881,9 +1117,8 @@ public class TrevorSettingsScreen extends Screen {
     }
 
     private static String formatLife(Double value) {
-        if (value == null) {
-            return "";
-        }
+        if (value == null) return "";
+        if (Double.isNaN(value)) return "*";
         double rounded = Math.rint(value);
         if (Math.abs(value - rounded) < 0.0001d) {
             return String.format(Locale.ROOT, "%.0f", rounded);
@@ -892,7 +1127,15 @@ public class TrevorSettingsScreen extends Screen {
     }
 
     private static boolean isAllowedLifeChar(char chr) {
-        return Character.isDigit(chr) || chr == ',' || chr == '.' || chr == ' ' || chr == '-';
+        return Character.isDigit(chr) || chr == ',' || chr == '.' || chr == ' ' || chr == '-' || chr == '*';
+    }
+
+    private String trim(String text, int width) {
+        return this.textRenderer.trimToWidth(text, width);
+    }
+
+    private static int primaryColor() {
+        return 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF);
     }
 
     private static int scaleRgb(int argb, float factor) {
@@ -906,53 +1149,12 @@ public class TrevorSettingsScreen extends Screen {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
-    private void updateLayout() {
-        int panelLeft = this.width / 2 - WINDOW_W / 2;
-        int panelTop = this.height / 2 - WINDOW_H / 2;
-
-        tabGeneralRect = new Rect(panelLeft + 16, panelTop + 52, 72, 20);
-        tabPresetsRect = new Rect(panelLeft + 94, panelTop + 52, 72, 20);
-        closeRect = new Rect(panelLeft + WINDOW_W - 100, panelTop + WINDOW_H - 28, 88, 18);
-
-        generalDetectionCard = new Rect(panelLeft + 12, panelTop + 84, 222, 118);
-        generalAppearanceCard = new Rect(panelLeft + 244, panelTop + 84, 494, 248);
-        generalPresetCard = new Rect(panelLeft + 12, panelTop + 212, 222, 120);
-        openPresetsRect = new Rect(generalPresetCard.x + 12, generalPresetCard.y + 56, generalPresetCard.w - 24, 20);
-
-        presetListCard = new Rect(panelLeft + 12, panelTop + 84, 230, 330);
-        entityListCard = new Rect(panelLeft + 250, panelTop + 84, 210, 330);
-        presetEditorCard = new Rect(panelLeft + 468, panelTop + 84, 280, 330);
-
-        espToggleRect = new Rect(generalDetectionCard.x + 12, generalDetectionCard.y + 46, generalDetectionCard.w - 24, 24);
-        tracerToggleRect = new Rect(generalDetectionCard.x + 12, generalDetectionCard.y + 76, generalDetectionCard.w - 24, 24);
-        thicknessTrackRect = new Rect(generalAppearanceCard.x + 16, generalAppearanceCard.y + 54, 186, 16);
-        svRect = new Rect(generalAppearanceCard.x + 16, generalAppearanceCard.y + 92, 180, 120);
-        hueRect = new Rect(generalAppearanceCard.x + 204, generalAppearanceCard.y + 92, 14, 120);
-    }
-
-    private void drawWrappedText(DrawContext context, Text text, int x, int y, int width, int color) {
-        List<OrderedText> lines = this.textRenderer.wrapLines(text, width);
-        int offset = 0;
-        for (OrderedText line : lines) {
-            context.drawText(this.textRenderer, line, x, y + offset, color, false);
-            offset += 10;
-        }
-    }
-
-    private String trim(String text, int width) {
-        return this.textRenderer.trimToWidth(text, width);
-    }
-
-    private static int primaryColor() {
-        return 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF);
-    }
-
-    private String hexColor() {
-        return String.format(Locale.ROOT, "#%06X", TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF);
-    }
-
     private static double clamp01(double value) {
         return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private static int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static int hsvToRgb(float hue, float saturation, float value) {
@@ -994,6 +1196,59 @@ public class TrevorSettingsScreen extends Screen {
         int gi = (int) ((g + m) * 255.0f);
         int bi = (int) ((b + m) * 255.0f);
         return (ri << 16) | (gi << 8) | bi;
+    }
+
+    private String hexColor() {
+        return String.format(Locale.ROOT, "#%06X", TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF);
+    }
+
+    private enum SelectionKind {
+        PRESET,
+        ENTITY,
+        LIFE
+    }
+
+    private enum TreeKind {
+        PRESET,
+        ENTITY,
+        LIFE
+    }
+
+    private static final class TreeRow {
+        private final TreeKind kind;
+        private final int presetIndex;
+        private final int entityIndex;
+        private final int lifeIndex;
+        private int x;
+        private int y;
+        private int w;
+        private int h;
+        private int depth;
+        private String title = "";
+        private String subtitle = "";
+        private boolean expanded;
+        private boolean selected;
+        private boolean active;
+        private boolean editable;
+        private boolean canAdd;
+        private boolean canDelete;
+        private boolean canUse;
+        private Rect rect = Rect.empty();
+        private Rect toggleRect = Rect.empty();
+        private Rect addRect = Rect.empty();
+        private Rect deleteRect = Rect.empty();
+        private Rect useRect = Rect.empty();
+
+        private TreeRow(TreeKind kind, int presetIndex, int entityIndex, int lifeIndex, int x, int y, int w, int h) {
+            this.kind = kind;
+            this.presetIndex = presetIndex;
+            this.entityIndex = entityIndex;
+            this.lifeIndex = lifeIndex;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+        }
     }
 
     private record Rect(int x, int y, int w, int h) {
