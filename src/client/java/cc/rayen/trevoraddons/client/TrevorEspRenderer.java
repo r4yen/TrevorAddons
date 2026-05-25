@@ -16,7 +16,7 @@ import org.joml.Vector3f;
 public final class TrevorEspRenderer {
     private static final float BOX_A = 1.0f;
     private static final double TRACER_START_OFFSET = 0.18;
-    private static final double THICKNESS_WORLD_SCALE = 0.0035;
+    private static final double THICKNESS_WORLD_SCALE = 0.02;
     private static final int DISTANCE_BLACK = 0xFF000000;
     private static final double DISTANCE_BLACK_AT = 20.0;
 
