@@ -16,12 +16,13 @@ It highlights Trevor animals with ESP boxes and optional tracers, plus an in-gam
 ## Commands
 
 - `/trevoraddons` or `/ta`: Open settings
+- `/trevoraddons debug`: Debug current targeted mob
 
 ## Compatibility
 
-- Minecraft `1.21.10`
-- Fabric Loader `>=0.19.2`
-- Fabric API `0.138.4+1.21.10`
+- Minecraft `1.21.11`
+- Fabric Loader `0.18.4 - 0.19.2`
+- Fabric API `0.140.2+1.21.11`
 
 ## License
 

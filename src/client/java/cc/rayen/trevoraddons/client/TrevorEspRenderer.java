@@ -19,6 +19,7 @@ public final class TrevorEspRenderer {
     private static final double THICKNESS_WORLD_SCALE = 0.0035;
     private static final int DISTANCE_BLACK = 0xFF000000;
     private static final double DISTANCE_BLACK_AT = 20.0;
+    private static final RenderLayer DEBUG_QUADS_LAYER = resolveDebugQuadsLayer();
 
     private TrevorEspRenderer() {
     }
@@ -47,12 +48,13 @@ public final class TrevorEspRenderer {
         float boxR = ((primaryColor >> 16) & 0xFF) / 255.0f;
         float boxG = ((primaryColor >> 8) & 0xFF) / 255.0f;
         float boxB = (primaryColor & 0xFF) / 255.0f;
-        VertexConsumer boxConsumer = renderBoxes ? consumers.getBuffer(RenderLayer.getDebugQuads()) : null;
-        VertexConsumer lineConsumer = renderLines ? consumers.getBuffer(RenderLayer.getDebugQuads()) : null;
+        VertexConsumer boxConsumer = renderBoxes ? consumers.getBuffer(DEBUG_QUADS_LAYER) : null;
+        VertexConsumer lineConsumer = renderLines ? consumers.getBuffer(DEBUG_QUADS_LAYER) : null;
         Quaternionf cameraOrientation = context.worldState().cameraRenderState.orientation;
         Vector3f forward = new Vector3f(0.0f, 0.0f, -1.0f).rotate(cameraOrientation);
         Vec3d viewDir = new Vec3d(forward.x, forward.y, forward.z);
         Vec3d tracerStart = viewDir.multiply(TRACER_START_OFFSET);
+        double thickness = TrevorAddonsClient.CONFIG.tracerLineWidth;
         double nearestDistance = Double.POSITIVE_INFINITY;
 
         for (Integer id : TrevorRuntime.getMarkedEntityIds()) {
@@ -85,17 +87,17 @@ public final class TrevorEspRenderer {
 
             if (boxConsumer != null) {
                 Box box = entity.getBoundingBox().expand(0.08).offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-                drawThickBox(entry, boxConsumer, box, boxR, boxG, boxB, viewDir, distanceBlend);
+                drawThickBox(entry, boxConsumer, box, boxR, boxG, boxB, viewDir, distanceBlend, thickness);
             }
 
             if (lineConsumer != null) {
                 int lineColor = distanceColor(TrevorAddonsClient.CONFIG.tracerLineColor, distanceBlend);
-                drawThickLine(entry, lineConsumer, tracerStart, entityCenter, lineColor, viewDir, distanceBlend);
+                drawThickLine(entry, lineConsumer, tracerStart, entityCenter, lineColor, viewDir, distanceBlend, thickness);
             }
         }
     }
 
-    private static void drawThickLine(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int argbColor, Vec3d viewDir, double distanceBlend) {
+    private static void drawThickLine(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int argbColor, Vec3d viewDir, double distanceBlend, double thickness) {
         Vec3d delta = end.subtract(start);
         if (lengthSquared(delta) < 1.0e-10) {
             return;
@@ -112,7 +114,7 @@ public final class TrevorEspRenderer {
         perp = normalize(perp);
 
         double widthScale = distanceThicknessScale(distanceBlend);
-        double halfWidth = Math.max(0.00002d, TrevorAddonsClient.CONFIG.tracerLineWidth * widthScale * THICKNESS_WORLD_SCALE) * 0.5d;
+        double halfWidth = Math.max(0.00002d, thickness * widthScale * THICKNESS_WORLD_SCALE) * 0.5d;
         Vec3d offset = perp.multiply(halfWidth);
 
         emitQuad(entry, consumer,
@@ -123,7 +125,7 @@ public final class TrevorEspRenderer {
                 argbColor);
     }
 
-    private static void drawThickBox(MatrixStack.Entry entry, VertexConsumer consumer, Box box, float r, float g, float b, Vec3d viewDir, double distanceBlend) {
+    private static void drawThickBox(MatrixStack.Entry entry, VertexConsumer consumer, Box box, float r, float g, float b, Vec3d viewDir, double distanceBlend, double thickness) {
         int argbColor = 0xFF000000 | (((int) Math.round(r * 255.0)) << 16) | (((int) Math.round(g * 255.0)) << 8) | (int) Math.round(b * 255.0);
 
         Vec3d min = new Vec3d(box.minX, box.minY, box.minZ);
@@ -137,20 +139,20 @@ public final class TrevorEspRenderer {
         Vec3d v110 = new Vec3d(max.x, max.y, min.z);
         Vec3d v111 = new Vec3d(max.x, max.y, max.z);
 
-        drawThickLine(entry, consumer, v000, v100, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v000, v010, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v000, v001, argbColor, viewDir, distanceBlend);
+        drawThickLine(entry, consumer, v000, v100, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v000, v010, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v000, v001, argbColor, viewDir, distanceBlend, thickness);
 
-        drawThickLine(entry, consumer, v111, v011, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v111, v101, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v111, v110, argbColor, viewDir, distanceBlend);
+        drawThickLine(entry, consumer, v111, v011, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v111, v101, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v111, v110, argbColor, viewDir, distanceBlend, thickness);
 
-        drawThickLine(entry, consumer, v100, v101, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v100, v110, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v010, v011, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v010, v110, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v001, v101, argbColor, viewDir, distanceBlend);
-        drawThickLine(entry, consumer, v001, v011, argbColor, viewDir, distanceBlend);
+        drawThickLine(entry, consumer, v100, v101, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v100, v110, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v010, v011, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v010, v110, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v001, v101, argbColor, viewDir, distanceBlend, thickness);
+        drawThickLine(entry, consumer, v001, v011, argbColor, viewDir, distanceBlend, thickness);
     }
 
     private static void emitQuad(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d a, Vec3d b, Vec3d c, Vec3d d, int argbColor) {
@@ -221,5 +223,21 @@ public final class TrevorEspRenderer {
             return new Vec3d(0.0, 0.0, 0.0);
         }
         return new Vec3d(value.x / length, value.y / length, value.z / length);
+    }
+
+    private static RenderLayer resolveDebugQuadsLayer() {
+        try {
+            Class<?> renderLayersClass = Class.forName("net.minecraft.client.render.RenderLayers");
+            Object layer = renderLayersClass.getMethod("debugQuads").invoke(null);
+            return (RenderLayer) layer;
+        } catch (ReflectiveOperationException | ClassCastException ignored) {
+        }
+
+        try {
+            Object layer = RenderLayer.class.getMethod("getDebugQuads").invoke(null);
+            return (RenderLayer) layer;
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            throw new IllegalStateException("Unable to resolve debug quads render layer", e);
+        }
     }
 }

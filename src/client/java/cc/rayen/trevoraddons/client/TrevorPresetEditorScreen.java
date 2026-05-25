@@ -21,7 +21,6 @@ public class TrevorPresetEditorScreen extends Screen {
     private static final int COLOR_PICKER_STEP = 4;
     private static final double MIN_TRACER_LINE_WIDTH = 0.2;
     private static final double MAX_TRACER_LINE_WIDTH = 1.0;
-    private static final double TRACER_WIDTH_CURVE = 3.4;
     private static final double[] QUICK_VALUES = {100.0, 500.0, 1000.0, 5000.0, 10000.0};
     private static final String[] ENTITY_KEYS = {
             TrevorConfig.HORSE_FAMILY_KEY,
@@ -106,10 +105,8 @@ public class TrevorPresetEditorScreen extends Screen {
     }
 
     public void syncHost(MinecraftClient client, int width, int height) {
-        this.client = client;
         this.width = width;
         this.height = height;
-        this.textRenderer = client == null ? null : client.textRenderer;
     }
 
     @Override
@@ -413,7 +410,7 @@ public class TrevorPresetEditorScreen extends Screen {
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
         drawToggle(context, distanceBlackeningToggleRect, "Distance blackening", TrevorAddonsClient.CONFIG.tracerDistanceBlackening, mouseX, mouseY);
 
-        context.drawText(mc().textRenderer, Text.literal("Line thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal("Line / box thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
         drawThicknessSlider(context, mouseX, mouseY);
 
         context.drawText(mc().textRenderer, Text.literal("Tracer color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
@@ -518,7 +515,7 @@ public class TrevorPresetEditorScreen extends Screen {
 
                     if (rule.matchesAnyHealth) {
                         TreeRow wildcardRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, -1, bodyX + 52, y, bodyW - 52, 24);
-                        wildcardRow.title = "\u2764 All";
+                        wildcardRow.title = "\u2764 " + wildcardLabel(rule);
                         wildcardRow.subtitle = "";
                         wildcardRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == -1;
                         wildcardRow.editable = preset.editable;
@@ -679,7 +676,7 @@ public class TrevorPresetEditorScreen extends Screen {
         Rect r = thicknessTrackRect;
         context.fill(r.x, r.y + 5, r.x + r.w, r.y + 10, 0xFF2A313D);
         double normalized = (TrevorAddonsClient.CONFIG.tracerLineWidth - MIN_TRACER_LINE_WIDTH) / (MAX_TRACER_LINE_WIDTH - MIN_TRACER_LINE_WIDTH);
-        normalized = Math.pow(clamp01(normalized), 1.0 / TRACER_WIDTH_CURVE);
+        normalized = clamp01(normalized);
         int knobX = r.x + (int) Math.round(normalized * (r.w - 1));
         int knobColor = r.contains(mouseX, mouseY) || draggingThickness ? primaryColor() : 0xFFD9E2EE;
         context.fill(knobX - 3, r.y + 1, knobX + 4, r.y + 14, knobColor);
@@ -806,19 +803,16 @@ public class TrevorPresetEditorScreen extends Screen {
             statusMessage = "Select a mob first.";
             return;
         }
-        double valueToAdd;
-        if (selectionKind == SelectionKind.LIFE && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
-            valueToAdd = rule.healthValues.get(selectedLifeIndex);
-        } else if (!rule.healthValues.isEmpty()) {
-            valueToAdd = rule.healthValues.get(rule.healthValues.size() - 1);
-        } else {
-            valueToAdd = 100.0;
-        }
+
+        double valueToAdd = nextSuggestedLifeValue(rule.healthValues);
         if (!containsValue(rule.healthValues, valueToAdd)) {
             rule.healthValues.add(valueToAdd);
             sortValues(rule.healthValues);
         }
-        selectedLifeIndex = rule.healthValues.size() - 1;
+        selectedLifeIndex = indexOfValue(rule.healthValues, valueToAdd);
+        if (selectedLifeIndex < 0) {
+            selectedLifeIndex = rule.healthValues.size() - 1;
+        }
         selectionKind = SelectionKind.LIFE;
         TrevorAddonsClient.CONFIG.save();
         syncInputFromSelection();
@@ -1137,7 +1131,7 @@ public class TrevorPresetEditorScreen extends Screen {
         presetNameInput = preset == null ? "" : preset.name;
         mobTypeInput = selectionKind == SelectionKind.PRESET || rule == null ? "" : rule.id;
         if (selectionKind == SelectionKind.LIFE && rule != null && selectedLifeIndex == -1 && rule.matchesAnyHealth) {
-            inputText = "All";
+            inputText = wildcardLabel(rule);
             return;
         }
         if (selectionKind == SelectionKind.LIFE && rule != null && selectedLifeIndex >= 0 && selectedLifeIndex < rule.healthValues.size()) {
@@ -1146,7 +1140,7 @@ public class TrevorPresetEditorScreen extends Screen {
         }
         if (rule != null && (selectionKind == SelectionKind.ENTITY || selectionKind == SelectionKind.LIFE)) {
             String lives = formatLives(rule.healthValues);
-            inputText = rule.matchesAnyHealth ? (lives.isEmpty() ? "All" : "All, " + lives) : lives;
+            inputText = rule.matchesAnyHealth ? (lives.isEmpty() ? wildcardLabel(rule) : wildcardLabel(rule) + ", " + lives) : lives;
             return;
         }
         inputText = "";
@@ -1157,7 +1151,7 @@ public class TrevorPresetEditorScreen extends Screen {
             return "Unknown";
         }
         if (TrevorConfig.HORSE_FAMILY_KEY.equals(key)) {
-            return "All";
+            return "Horse *";
         }
         int colon = key.indexOf(':');
         String path = colon >= 0 ? key.substring(colon + 1) : key;
@@ -1222,9 +1216,16 @@ public class TrevorPresetEditorScreen extends Screen {
             return "Mob: " + rule.name;
         }
         if (rule.matchesAnyHealth && selectedLifeIndex == -1) {
-            return "Life: All";
+            return "Life: " + wildcardLabel(rule);
         }
         return "Life: " + formatLife(selectedLifeValue(rule));
+    }
+
+    private String wildcardLabel(TrevorConfig.EntityRule rule) {
+        if (rule != null && TrevorConfig.HORSE_FAMILY_KEY.equals(rule.id)) {
+            return "Horse *";
+        }
+        return "All";
     }
 
     private Double selectedLifeValue(TrevorConfig.EntityRule rule) {
@@ -1302,8 +1303,7 @@ public class TrevorPresetEditorScreen extends Screen {
     private void updateThicknessFromMouse(double mouseX) {
         double t = (mouseX - thicknessTrackRect.x) / (double) thicknessTrackRect.w;
         t = clamp01(t);
-        double shaped = Math.pow(t, TRACER_WIDTH_CURVE);
-        TrevorAddonsClient.CONFIG.tracerLineWidth = Math.round((MIN_TRACER_LINE_WIDTH + (MAX_TRACER_LINE_WIDTH - MIN_TRACER_LINE_WIDTH) * shaped) * 100.0) / 100.0;
+        TrevorAddonsClient.CONFIG.tracerLineWidth = Math.round((MIN_TRACER_LINE_WIDTH + (MAX_TRACER_LINE_WIDTH - MIN_TRACER_LINE_WIDTH) * t) * 1000.0) / 1000.0;
         markConfigDirty();
     }
 
@@ -1405,6 +1405,37 @@ public class TrevorPresetEditorScreen extends Screen {
         return false;
     }
 
+    private static int indexOfValue(List<Double> values, double candidate) {
+        if (values == null) return -1;
+        for (int i = 0; i < values.size(); i++) {
+            Double value = values.get(i);
+            if (value != null && !Double.isNaN(value) && Math.abs(value - candidate) < 0.01d) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static double nextSuggestedLifeValue(List<Double> values) {
+        if (values == null || values.isEmpty()) {
+            return QUICK_VALUES[0];
+        }
+
+        for (double candidate : QUICK_VALUES) {
+            if (!containsValue(values, candidate)) {
+                return candidate;
+            }
+        }
+
+        double max = values.get(0) == null ? QUICK_VALUES[QUICK_VALUES.length - 1] : values.get(0);
+        for (Double value : values) {
+            if (value != null && !Double.isNaN(value)) {
+                max = Math.max(max, value);
+            }
+        }
+        return Math.max(100.0, Math.ceil(max + 100.0));
+    }
+
     private static void sortValues(List<Double> values) {
         values.sort((a, b) -> {
             boolean an = a == null;
@@ -1436,7 +1467,7 @@ public class TrevorPresetEditorScreen extends Screen {
         if (Math.abs(value - rounded) < 0.0001d) {
             return String.format(Locale.ROOT, "%.0f", rounded);
         }
-        return String.format(Locale.ROOT, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+        return String.format(Locale.ROOT, "%.3f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
     private static String formatThickness(double value) {

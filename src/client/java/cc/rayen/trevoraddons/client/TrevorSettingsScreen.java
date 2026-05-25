@@ -16,7 +16,6 @@ public class TrevorSettingsScreen extends Screen {
     private static final int COLOR_PICKER_STEP = 4;
     private static final double MIN_TRACER_LINE_WIDTH = 0.2;
     private static final double MAX_TRACER_LINE_WIDTH = 1.0;
-    private static final double TRACER_WIDTH_CURVE = 3.4;
 
     private enum Page {
         VISUALS,
@@ -242,7 +241,7 @@ public class TrevorSettingsScreen extends Screen {
 
     private void drawVisualsPage(DrawContext context, int mouseX, int mouseY) {
         drawCard(context, visualDetectionCard, "Visuals", "Toggle boxes, tracers, and distance shading.");
-        drawCard(context, visualAppearanceCard, "Appearance", "Adjust tracer color and thickness.");
+        drawCard(context, visualAppearanceCard, "Appearance", "Adjust tracer color and line/box thickness.");
 
         context.drawText(this.textRenderer, Text.literal("Visuals"), visualDetectionCard.x + 12, visualDetectionCard.y + 12, 0xFFEAF0F7, false);
         context.drawText(this.textRenderer, Text.literal("Appearance"), visualAppearanceCard.x + 12, visualAppearanceCard.y + 12, 0xFFEAF0F7, false);
@@ -251,7 +250,7 @@ public class TrevorSettingsScreen extends Screen {
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
         drawToggle(context, distanceBlackeningToggleRect, "Distance blackening", TrevorAddonsClient.CONFIG.tracerDistanceBlackening, mouseX, mouseY);
 
-        context.drawText(this.textRenderer, Text.literal("Line thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
+        context.drawText(this.textRenderer, Text.literal("Line / box thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
         drawThicknessSlider(context, mouseX, mouseY);
 
         context.drawText(this.textRenderer, Text.literal("Tracer color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
@@ -297,8 +296,7 @@ public class TrevorSettingsScreen extends Screen {
     private void updateThicknessFromMouse(double mouseX) {
         double t = (mouseX - thicknessTrackRect.x) / (double) thicknessTrackRect.w;
         t = clamp01(t);
-        double shaped = Math.pow(t, TRACER_WIDTH_CURVE);
-        TrevorAddonsClient.CONFIG.tracerLineWidth = Math.round((MIN_TRACER_LINE_WIDTH + (MAX_TRACER_LINE_WIDTH - MIN_TRACER_LINE_WIDTH) * shaped) * 100.0) / 100.0;
+        TrevorAddonsClient.CONFIG.tracerLineWidth = Math.round((MIN_TRACER_LINE_WIDTH + (MAX_TRACER_LINE_WIDTH - MIN_TRACER_LINE_WIDTH) * t) * 1000.0) / 1000.0;
         markConfigDirty();
     }
 
@@ -377,7 +375,6 @@ public class TrevorSettingsScreen extends Screen {
         Rect r = thicknessTrackRect;
         context.fill(r.x, r.y + 5, r.x + r.w, r.y + 10, 0xFF2A313D);
         double normalized = (TrevorAddonsClient.CONFIG.tracerLineWidth - MIN_TRACER_LINE_WIDTH) / (MAX_TRACER_LINE_WIDTH - MIN_TRACER_LINE_WIDTH);
-        normalized = Math.pow(clamp01(normalized), 1.0 / TRACER_WIDTH_CURVE);
         normalized = clamp01(normalized);
         int knobX = r.x + (int) Math.round(normalized * (r.w - 1));
         int knobColor = r.contains(mouseX, mouseY) || draggingThickness ? primaryColor() : 0xFFD9E2EE;
@@ -386,7 +383,7 @@ public class TrevorSettingsScreen extends Screen {
     }
 
     private static String formatThickness(double value) {
-        return String.format(Locale.ROOT, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+        return String.format(Locale.ROOT, "%.3f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
     private void drawColorPicker(DrawContext context) {

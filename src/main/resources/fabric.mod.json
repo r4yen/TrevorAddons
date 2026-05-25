@@ -3,11 +3,17 @@
   "id": "trevoraddons",
   "version": "${version}",
   "name": "TrevorAddons",
-  "description": "",
-  "authors": [],
-  "contact": {},
+  "description": "Client-side Fabric mod for SkyBlock Trevor hunting with ESP, tracers, presets, and an in-game editor.",
+  "authors": [
+    "r4yen"
+  ],
+  "contact": {
+    "homepage": "https://github.com/r4yen/TrevorAddons",
+    "sources": "https://github.com/r4yen/TrevorAddons",
+    "issues": "https://discord.gg/8kMmj8Vb9Q"
+  },
   "license": "All-Rights-Reserved",
-  "icon": "assets/trevoraddons/icon.png",
+  "icon": "logo.png",
   "environment": "client",
   "entrypoints": {
     "fabric-datagen": [
@@ -16,9 +22,21 @@
     "client": [
       "cc.rayen.trevoraddons.client.TrevorAddonsClient"
     ],
+    "modmenu": [
+      "cc.rayen.trevoraddons.client.TrevorAddonsModMenu"
+    ],
     "main": [
       "cc.rayen.trevoraddons.TrevorAddons"
     ]
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "trevoraddons.discord": "https://discord.gg/8kMmj8Vb9Q",
+        "trevoraddons.github": "https://github.com/r4yen/TrevorAddons",
+        "trevoraddons.issues": "https://discord.gg/8kMmj8Vb9Q"
+      }
+    }
   },
   "mixins": [
     "trevoraddons.mixins.json",
@@ -28,8 +46,8 @@
     }
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
-    "fabric-api": "*",
+    "fabricloader": "${loader_version_range}",
+    "fabric-api": ">=${fabric_version}",
     "minecraft": "${minecraft_version_range}"
   }
 }

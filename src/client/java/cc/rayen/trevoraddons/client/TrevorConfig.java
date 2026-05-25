@@ -25,7 +25,7 @@ public final class TrevorConfig {
     public static final String LEGACY_HORSE_FAMILY_KEY = "trevoraddons:horse_family";
 
     private static final List<EntityRule> DEFAULT_ENTITY_RULES = List.of(
-            new EntityRule(HORSE_FAMILY_KEY, "Horse *", List.of(1024.0)),
+            createWildcardEntityRule(HORSE_FAMILY_KEY, "Horse *"),
             new EntityRule("minecraft:cow", "Cow", List.of(100.0, 500.0, 1000.0, 5000.0, 10000.0)),
             new EntityRule("minecraft:pig", "Pig", List.of(100.0, 500.0, 1000.0, 5000.0, 10000.0)),
             new EntityRule("minecraft:sheep", "Sheep", List.of(100.0, 500.0, 1000.0, 5000.0, 10000.0)),
@@ -190,8 +190,15 @@ public final class TrevorConfig {
 
         if (DEFAULT_PRESET_ID.equals(preset.id)) {
             for (EntityRule defaultRule : DEFAULT_ENTITY_RULES) {
-                if (preset.getRule(defaultRule.id) == null) {
+                EntityRule current = preset.getRule(defaultRule.id);
+                if (current == null) {
                     preset.entities.add(defaultRule.copy());
+                } else if (HORSE_FAMILY_KEY.equals(current.id)) {
+                    current.healthValues = new ArrayList<>();
+                    current.matchesAnyHealth = true;
+                    if (current.name == null || current.name.isBlank() || "Horse".equals(current.name) || "All".equals(current.name)) {
+                        current.name = "Horse *";
+                    }
                 }
             }
         }
@@ -241,6 +248,12 @@ public final class TrevorConfig {
             preset.entities.add(rule.copy());
         }
         return preset;
+    }
+
+    private static EntityRule createWildcardEntityRule(String id, String name) {
+        EntityRule rule = new EntityRule(id, name, List.of());
+        rule.matchesAnyHealth = true;
+        return rule;
     }
 
     private static String displayNameForKey(String key) {
