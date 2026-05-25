@@ -19,8 +19,8 @@ public class TrevorPresetEditorScreen extends Screen {
     private static final int WINDOW_W = 760;
     private static final int WINDOW_H = 520;
     private static final int COLOR_PICKER_STEP = 4;
-    private static final double MIN_TRACER_LINE_WIDTH = 0.02;
-    private static final double MAX_TRACER_LINE_WIDTH = 48.0;
+    private static final double MIN_TRACER_LINE_WIDTH = 0.2;
+    private static final double MAX_TRACER_LINE_WIDTH = 1.0;
     private static final double TRACER_WIDTH_CURVE = 3.4;
     private static final double[] QUICK_VALUES = {100.0, 500.0, 1000.0, 5000.0, 10000.0};
     private static final String[] ENTITY_KEYS = {

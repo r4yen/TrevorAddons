@@ -35,7 +35,7 @@ public final class TrevorConfig {
     public boolean markTrevorAnimals = true;
     public boolean lineToTrevorAnimals = true;
     public boolean tracerDistanceBlackening = false;
-    public double tracerLineWidth = 4.0;
+    public double tracerLineWidth = 0.6;
     public int tracerLineColor = 0xFFF9B233;
     public String activePresetId = DEFAULT_PRESET_ID;
     public List<Preset> presets = new ArrayList<>();
@@ -170,6 +170,8 @@ public final class TrevorConfig {
         if (getPresetById(activePresetId) == null) {
             activePresetId = DEFAULT_PRESET_ID;
         }
+
+        tracerLineWidth = clamp(tracerLineWidth, 0.2d, 1.0d);
     }
 
     private void normalizePreset(Preset preset) {
@@ -277,6 +279,10 @@ public final class TrevorConfig {
         }
 
         return true;
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     public static final class Preset {

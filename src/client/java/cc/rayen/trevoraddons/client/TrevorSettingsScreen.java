@@ -14,8 +14,8 @@ public class TrevorSettingsScreen extends Screen {
     private static final int WINDOW_W = 760;
     private static final int WINDOW_H = 430;
     private static final int COLOR_PICKER_STEP = 4;
-    private static final double MIN_TRACER_LINE_WIDTH = 0.02;
-    private static final double MAX_TRACER_LINE_WIDTH = 48.0;
+    private static final double MIN_TRACER_LINE_WIDTH = 0.2;
+    private static final double MAX_TRACER_LINE_WIDTH = 1.0;
     private static final double TRACER_WIDTH_CURVE = 3.4;
 
     private enum Page {
