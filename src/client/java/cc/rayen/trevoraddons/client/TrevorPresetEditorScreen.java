@@ -464,12 +464,12 @@ public class TrevorPresetEditorScreen extends Screen {
     }
 
     private void drawVisualsSection(DrawContext context, int mouseX, int mouseY, int accentColor) {
-        context.drawText(mc().textRenderer, Text.literal("Detection"), visualsBodyRect.x + 12, visualsBodyRect.y + 8, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal("Visuals"), visualsBodyRect.x + 12, visualsBodyRect.y + 8, 0xFFEAF0F7, false);
         drawToggle(context, espToggleRect, "Trevor Animals ESP", TrevorAddonsClient.CONFIG.markTrevorAnimals, mouseX, mouseY);
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
         drawToggle(context, distanceBlackeningToggleRect, "Distance blackening", TrevorAddonsClient.CONFIG.tracerDistanceBlackening, mouseX, mouseY);
 
-        context.drawText(mc().textRenderer, Text.literal("Line / box thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal("Line thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
         drawThicknessSlider(context, mouseX, mouseY);
 
         context.drawText(mc().textRenderer, Text.literal("Tracer color"), svRect.x, svRect.y - 14, 0xFFD5DBE5, false);
