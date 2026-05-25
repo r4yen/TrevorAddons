@@ -2,7 +2,6 @@ package cc.rayen.trevoraddons.client;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -48,38 +47,31 @@ public final class TrevorEspRenderer {
         float boxR = ((primaryColor >> 16) & 0xFF) / 255.0f;
         float boxG = ((primaryColor >> 8) & 0xFF) / 255.0f;
         float boxB = (primaryColor & 0xFF) / 255.0f;
-        float previousLineWidth = RenderSystem.getShaderLineWidth();
-        RenderSystem.lineWidth((float) TrevorAddonsClient.CONFIG.tracerLineWidth);
+        VertexConsumer boxConsumer = renderBoxes ? consumers.getBuffer(RenderLayer.getLines()) : null;
+        VertexConsumer lineConsumer = renderLines ? consumers.getBuffer(RenderLayer.getDebugLineStrip((float) TrevorAddonsClient.CONFIG.tracerLineWidth)) : null;
+        Quaternionf cameraOrientation = context.worldState().cameraRenderState.orientation;
+        Vector3f forward = new Vector3f(0.0f, 0.0f, -1.0f).rotate(cameraOrientation);
+        Vec3d tracerStart = new Vec3d(forward.x, forward.y, forward.z).multiply(TRACER_START_OFFSET);
 
-        try {
-            VertexConsumer boxConsumer = renderBoxes ? consumers.getBuffer(RenderLayer.getLines()) : null;
-            VertexConsumer lineConsumer = renderLines ? consumers.getBuffer(RenderLayer.getLines()) : null;
-            Quaternionf cameraOrientation = context.worldState().cameraRenderState.orientation;
-            Vector3f forward = new Vector3f(0.0f, 0.0f, -1.0f).rotate(cameraOrientation);
-            Vec3d tracerStart = new Vec3d(forward.x, forward.y, forward.z).multiply(TRACER_START_OFFSET);
+        for (Integer id : TrevorRuntime.getMarkedEntityIds()) {
+            Entity entity = client.world.getEntityById(id);
+            if (entity == null || !entity.isAlive() || entity.isRemoved()) continue;
+            if (!TrevorRuntime.shouldMarkTrevorAnimal(entity)) continue;
 
-            for (Integer id : TrevorRuntime.getMarkedEntityIds()) {
-                Entity entity = client.world.getEntityById(id);
-                if (entity == null || !entity.isAlive() || entity.isRemoved()) continue;
-                if (!TrevorRuntime.shouldMarkTrevorAnimal(entity)) continue;
-
-                if (boxConsumer != null) {
-                    Box box = entity.getBoundingBox().expand(0.08).offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-                    VertexRendering.drawBox(entry, boxConsumer, box, boxR, boxG, boxB, BOX_A);
-                }
-
-                if (lineConsumer != null) {
-                    Vec3d entityCenter = new Vec3d(
-                            entity.getX() - cameraPos.x,
-                            entity.getY() + (entity.getHeight() * 0.5) - cameraPos.y,
-                            entity.getZ() - cameraPos.z
-                    );
-                    int lineColor = distanceColor(TrevorAddonsClient.CONFIG.tracerLineColor, entityCenter.length());
-                    drawLine(entry, lineConsumer, tracerStart, entityCenter, lineColor);
-                }
+            if (boxConsumer != null) {
+                Box box = entity.getBoundingBox().expand(0.08).offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+                VertexRendering.drawBox(entry, boxConsumer, box, boxR, boxG, boxB, BOX_A);
             }
-        } finally {
-            RenderSystem.lineWidth(previousLineWidth);
+
+            if (lineConsumer != null) {
+                Vec3d entityCenter = new Vec3d(
+                        entity.getX() - cameraPos.x,
+                        entity.getY() + (entity.getHeight() * 0.5) - cameraPos.y,
+                        entity.getZ() - cameraPos.z
+                );
+                int lineColor = distanceColor(TrevorAddonsClient.CONFIG.tracerLineColor, entityCenter.length());
+                drawLine(entry, lineConsumer, tracerStart, entityCenter, lineColor);
+            }
         }
     }
 
