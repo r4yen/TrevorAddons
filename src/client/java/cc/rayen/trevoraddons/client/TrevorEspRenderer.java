@@ -16,7 +16,7 @@ import org.joml.Vector3f;
 public final class TrevorEspRenderer {
     private static final float BOX_A = 1.0f;
     private static final double TRACER_START_OFFSET = 0.18;
-    private static final double THICKNESS_WORLD_SCALE = 0.02;
+    private static final double THICKNESS_WORLD_SCALE = 0.0035;
     private static final int DISTANCE_BLACK = 0xFF000000;
     private static final double DISTANCE_BLACK_AT = 20.0;
 
@@ -92,34 +92,21 @@ public final class TrevorEspRenderer {
         }
 
         Vec3d lineDir = normalize(delta);
-        Vec3d perp1 = cross(lineDir, viewDir);
-        if (lengthSquared(perp1) < 1.0e-10) {
-            perp1 = cross(lineDir, new Vec3d(0.0, 1.0, 0.0));
+        Vec3d perp = cross(lineDir, viewDir);
+        if (lengthSquared(perp) < 1.0e-10) {
+            perp = cross(lineDir, new Vec3d(0.0, 1.0, 0.0));
         }
-        if (lengthSquared(perp1) < 1.0e-10) {
-            perp1 = new Vec3d(1.0, 0.0, 0.0);
+        if (lengthSquared(perp) < 1.0e-10) {
+            perp = new Vec3d(1.0, 0.0, 0.0);
         }
-        perp1 = normalize(perp1);
+        perp = normalize(perp);
 
-        Vec3d perp2 = cross(lineDir, perp1);
-        if (lengthSquared(perp2) < 1.0e-10) {
-            perp2 = new Vec3d(0.0, 1.0, 0.0);
-        }
-        perp2 = normalize(perp2);
-
-        double thickness = Math.max(0.00005d, TrevorAddonsClient.CONFIG.tracerLineWidth * THICKNESS_WORLD_SCALE);
-        Vec3d off1 = perp1.multiply(thickness);
-        Vec3d off2 = perp2.multiply(thickness);
+        double thickness = Math.max(0.00002d, TrevorAddonsClient.CONFIG.tracerLineWidth * THICKNESS_WORLD_SCALE);
+        Vec3d offset = perp.multiply(thickness);
 
         drawLine(entry, consumer, start, end, argbColor);
-        drawLine(entry, consumer, start.add(off1), end.add(off1), argbColor);
-        drawLine(entry, consumer, start.add(off1.multiply(-1.0)), end.add(off1.multiply(-1.0)), argbColor);
-        drawLine(entry, consumer, start.add(off2), end.add(off2), argbColor);
-        drawLine(entry, consumer, start.add(off2.multiply(-1.0)), end.add(off2.multiply(-1.0)), argbColor);
-        drawLine(entry, consumer, start.add(off1).add(off2), end.add(off1).add(off2), argbColor);
-        drawLine(entry, consumer, start.add(off1).add(off2.multiply(-1.0)), end.add(off1).add(off2.multiply(-1.0)), argbColor);
-        drawLine(entry, consumer, start.add(off1.multiply(-1.0)).add(off2), end.add(off1.multiply(-1.0)).add(off2), argbColor);
-        drawLine(entry, consumer, start.add(off1.multiply(-1.0)).add(off2.multiply(-1.0)), end.add(off1.multiply(-1.0)).add(off2.multiply(-1.0)), argbColor);
+        drawLine(entry, consumer, start.add(offset), end.add(offset), argbColor);
+        drawLine(entry, consumer, start.add(offset.multiply(-1.0)), end.add(offset.multiply(-1.0)), argbColor);
     }
 
     private static void drawThickBox(MatrixStack.Entry entry, VertexConsumer consumer, Box box, float r, float g, float b, Vec3d viewDir) {
