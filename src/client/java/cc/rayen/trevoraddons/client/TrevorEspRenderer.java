@@ -47,8 +47,8 @@ public final class TrevorEspRenderer {
         float boxR = ((primaryColor >> 16) & 0xFF) / 255.0f;
         float boxG = ((primaryColor >> 8) & 0xFF) / 255.0f;
         float boxB = (primaryColor & 0xFF) / 255.0f;
-        VertexConsumer boxConsumer = renderBoxes ? consumers.getBuffer(RenderLayer.getLines()) : null;
-        VertexConsumer lineConsumer = renderLines ? consumers.getBuffer(RenderLayer.getLines()) : null;
+        VertexConsumer boxConsumer = renderBoxes ? consumers.getBuffer(RenderLayer.getDebugQuads()) : null;
+        VertexConsumer lineConsumer = renderLines ? consumers.getBuffer(RenderLayer.getDebugQuads()) : null;
         Quaternionf cameraOrientation = context.worldState().cameraRenderState.orientation;
         Vector3f forward = new Vector3f(0.0f, 0.0f, -1.0f).rotate(cameraOrientation);
         Vec3d viewDir = new Vec3d(forward.x, forward.y, forward.z);
@@ -76,15 +76,6 @@ public final class TrevorEspRenderer {
         }
     }
 
-    private static void drawLine(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int argbColor) {
-        Vec3d normal = end.subtract(start).normalize();
-        float nx = (float) normal.x;
-        float ny = (float) normal.y;
-        float nz = (float) normal.z;
-        consumer.vertex(entry, (float) start.x, (float) start.y, (float) start.z).color(argbColor).normal(entry, nx, ny, nz);
-        consumer.vertex(entry, (float) end.x, (float) end.y, (float) end.z).color(argbColor).normal(entry, nx, ny, nz);
-    }
-
     private static void drawThickLine(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int argbColor, Vec3d viewDir) {
         Vec3d delta = end.subtract(start);
         if (lengthSquared(delta) < 1.0e-10) {
@@ -101,12 +92,15 @@ public final class TrevorEspRenderer {
         }
         perp = normalize(perp);
 
-        double thickness = Math.max(0.00002d, TrevorAddonsClient.CONFIG.tracerLineWidth * THICKNESS_WORLD_SCALE);
-        Vec3d offset = perp.multiply(thickness);
+        double halfWidth = Math.max(0.00002d, TrevorAddonsClient.CONFIG.tracerLineWidth * THICKNESS_WORLD_SCALE) * 0.5d;
+        Vec3d offset = perp.multiply(halfWidth);
 
-        drawLine(entry, consumer, start, end, argbColor);
-        drawLine(entry, consumer, start.add(offset), end.add(offset), argbColor);
-        drawLine(entry, consumer, start.add(offset.multiply(-1.0)), end.add(offset.multiply(-1.0)), argbColor);
+        emitQuad(entry, consumer,
+                start.add(offset.multiply(-1.0)),
+                end.add(offset.multiply(-1.0)),
+                end.add(offset),
+                start.add(offset),
+                argbColor);
     }
 
     private static void drawThickBox(MatrixStack.Entry entry, VertexConsumer consumer, Box box, float r, float g, float b, Vec3d viewDir) {
@@ -137,6 +131,17 @@ public final class TrevorEspRenderer {
         drawThickLine(entry, consumer, v010, v110, argbColor, viewDir);
         drawThickLine(entry, consumer, v001, v101, argbColor, viewDir);
         drawThickLine(entry, consumer, v001, v011, argbColor, viewDir);
+    }
+
+    private static void emitQuad(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d a, Vec3d b, Vec3d c, Vec3d d, int argbColor) {
+        Vec3d normal = normalize(cross(b.subtract(a), c.subtract(a)));
+        float nx = (float) normal.x;
+        float ny = (float) normal.y;
+        float nz = (float) normal.z;
+        consumer.vertex(entry, (float) a.x, (float) a.y, (float) a.z).color(argbColor).normal(entry, nx, ny, nz);
+        consumer.vertex(entry, (float) b.x, (float) b.y, (float) b.z).color(argbColor).normal(entry, nx, ny, nz);
+        consumer.vertex(entry, (float) c.x, (float) c.y, (float) c.z).color(argbColor).normal(entry, nx, ny, nz);
+        consumer.vertex(entry, (float) d.x, (float) d.y, (float) d.z).color(argbColor).normal(entry, nx, ny, nz);
     }
 
     private static int distanceColor(int baseColor, double distance) {
