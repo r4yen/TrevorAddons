@@ -18,9 +18,8 @@ import org.joml.Vector3f;
 public final class TrevorEspRenderer {
     private static final float BOX_A = 1.0f;
     private static final double TRACER_START_OFFSET = 0.18;
-    private static final int TRACER_SEGMENTS = 24;
-    private static final int DISTANCE_GRAY = 0xFF7F7F7F;
     private static final int DISTANCE_BLACK = 0xFF000000;
+    private static final double DISTANCE_BLACK_AT = 20.0;
 
     private TrevorEspRenderer() {
     }
@@ -75,7 +74,8 @@ public final class TrevorEspRenderer {
                             entity.getY() + (entity.getHeight() * 0.5) - cameraPos.y,
                             entity.getZ() - cameraPos.z
                     );
-                    drawDistanceLine(entry, lineConsumer, tracerStart, entityCenter, TrevorAddonsClient.CONFIG.tracerLineColor);
+                    int lineColor = distanceColor(TrevorAddonsClient.CONFIG.tracerLineColor, entityCenter.length());
+                    drawLine(entry, lineConsumer, tracerStart, entityCenter, lineColor);
                 }
             }
         } finally {
@@ -83,43 +83,18 @@ public final class TrevorEspRenderer {
         }
     }
 
-    private static void drawDistanceLine(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int baseColor) {
-        Vec3d delta = end.subtract(start);
-        double length = delta.length();
-        if (length <= 0.0001d) {
-            drawLineSegment(entry, consumer, start, end, baseColor, DISTANCE_BLACK);
-            return;
-        }
-
-        int segments = Math.max(8, Math.min(TRACER_SEGMENTS, (int) Math.ceil(length * 4.0)));
-        Vec3d step = delta.multiply(1.0d / segments);
-        Vec3d current = start;
-        for (int i = 0; i < segments; i++) {
-            Vec3d next = i == segments - 1 ? end : start.add(step.multiply(i + 1));
-            double t0 = i / (double) segments;
-            double t1 = (i + 1) / (double) segments;
-            int startColor = distanceTint(baseColor, t0);
-            int endColor = distanceTint(baseColor, t1);
-            drawLineSegment(entry, consumer, current, next, startColor, endColor);
-            current = next;
-        }
-    }
-
-    private static void drawLineSegment(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int startColor, int endColor) {
+    private static void drawLine(MatrixStack.Entry entry, VertexConsumer consumer, Vec3d start, Vec3d end, int argbColor) {
         Vec3d normal = end.subtract(start).normalize();
         float nx = (float) normal.x;
         float ny = (float) normal.y;
         float nz = (float) normal.z;
-        consumer.vertex(entry, (float) start.x, (float) start.y, (float) start.z).color(startColor).normal(entry, nx, ny, nz);
-        consumer.vertex(entry, (float) end.x, (float) end.y, (float) end.z).color(endColor).normal(entry, nx, ny, nz);
+        consumer.vertex(entry, (float) start.x, (float) start.y, (float) start.z).color(argbColor).normal(entry, nx, ny, nz);
+        consumer.vertex(entry, (float) end.x, (float) end.y, (float) end.z).color(argbColor).normal(entry, nx, ny, nz);
     }
 
-    private static int distanceTint(int baseColor, double t) {
-        t = clamp01(t);
-        if (t <= 0.5d) {
-            return lerpColor(baseColor, DISTANCE_GRAY, t * 2.0d);
-        }
-        return lerpColor(DISTANCE_GRAY, DISTANCE_BLACK, (t - 0.5d) * 2.0d);
+    private static int distanceColor(int baseColor, double distance) {
+        double t = clamp01(distance / DISTANCE_BLACK_AT);
+        return lerpColor(baseColor, DISTANCE_BLACK, t);
     }
 
     private static int lerpColor(int a, int b, double t) {
