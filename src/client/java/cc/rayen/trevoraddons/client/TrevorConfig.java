@@ -34,6 +34,7 @@ public final class TrevorConfig {
 
     public boolean markTrevorAnimals = true;
     public boolean lineToTrevorAnimals = true;
+    public boolean tracerDistanceBlackening = false;
     public double tracerLineWidth = 4.0;
     public int tracerLineColor = 0xFFF9B233;
     public String activePresetId = DEFAULT_PRESET_ID;

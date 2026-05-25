@@ -85,6 +85,9 @@ public final class TrevorEspRenderer {
     }
 
     private static int distanceColor(int baseColor, double distance) {
+        if (!TrevorAddonsClient.CONFIG.tracerDistanceBlackening) {
+            return 0xFF000000 | (baseColor & 0xFFFFFF);
+        }
         double t = clamp01(distance / DISTANCE_BLACK_AT);
         return lerpColor(baseColor, DISTANCE_BLACK, t);
     }

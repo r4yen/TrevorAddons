@@ -14,9 +14,9 @@ public class TrevorSettingsScreen extends Screen {
     private static final int WINDOW_W = 760;
     private static final int WINDOW_H = 430;
     private static final int COLOR_PICKER_STEP = 4;
-    private static final double MIN_TRACER_LINE_WIDTH = 0.12;
-    private static final double MAX_TRACER_LINE_WIDTH = 14.0;
-    private static final double TRACER_WIDTH_CURVE = 2.8;
+    private static final double MIN_TRACER_LINE_WIDTH = 0.02;
+    private static final double MAX_TRACER_LINE_WIDTH = 48.0;
+    private static final double TRACER_WIDTH_CURVE = 3.4;
 
     private enum Page {
         VISUALS,
@@ -35,6 +35,7 @@ public class TrevorSettingsScreen extends Screen {
     private Rect presetInfoCard = Rect.empty();
     private Rect espToggleRect = Rect.empty();
     private Rect tracerToggleRect = Rect.empty();
+    private Rect distanceBlackeningToggleRect = Rect.empty();
     private Rect thicknessTrackRect = Rect.empty();
     private Rect svRect = Rect.empty();
     private Rect hueRect = Rect.empty();
@@ -219,6 +220,11 @@ public class TrevorSettingsScreen extends Screen {
             markConfigDirty();
             return true;
         }
+        if (distanceBlackeningToggleRect.contains(mouseX, mouseY)) {
+            TrevorAddonsClient.CONFIG.tracerDistanceBlackening = !TrevorAddonsClient.CONFIG.tracerDistanceBlackening;
+            markConfigDirty();
+            return true;
+        }
         if (thicknessTrackRect.contains(mouseX, mouseY)) {
             draggingThickness = true;
             setDragging(true);
@@ -242,13 +248,14 @@ public class TrevorSettingsScreen extends Screen {
 
     private void drawVisualsPage(DrawContext context, int mouseX, int mouseY) {
         drawCard(context, visualDetectionCard, "Detection", "Toggle boxes and tracers for Trevor animals.");
-        drawCard(context, visualAppearanceCard, "Appearance", "Adjust tracer color and thickness.");
+        drawCard(context, visualAppearanceCard, "Appearance", "Adjust tracer color, thickness, and distance shading.");
 
         context.drawText(this.textRenderer, Text.literal("Detection"), visualDetectionCard.x + 12, visualDetectionCard.y + 12, 0xFFEAF0F7, false);
         context.drawText(this.textRenderer, Text.literal("Appearance"), visualAppearanceCard.x + 12, visualAppearanceCard.y + 12, 0xFFEAF0F7, false);
 
         drawToggle(context, espToggleRect, "Trevor Animals ESP", TrevorAddonsClient.CONFIG.markTrevorAnimals, mouseX, mouseY);
         drawToggle(context, tracerToggleRect, "Trevor Animals Tracer", TrevorAddonsClient.CONFIG.lineToTrevorAnimals, mouseX, mouseY);
+        drawToggle(context, distanceBlackeningToggleRect, "Distance blackening", TrevorAddonsClient.CONFIG.tracerDistanceBlackening, mouseX, mouseY);
 
         context.drawText(this.textRenderer, Text.literal("Tracer thickness"), thicknessTrackRect.x, thicknessTrackRect.y - 14, 0xFFD5DBE5, false);
         drawThicknessSlider(context, mouseX, mouseY);
@@ -273,6 +280,7 @@ public class TrevorSettingsScreen extends Screen {
         visualAppearanceCard = new Rect(panelLeft + 264, panelTop + 84, 484, 260);
         espToggleRect = new Rect(visualDetectionCard.x + 12, visualDetectionCard.y + 44, visualDetectionCard.w - 24, 24);
         tracerToggleRect = new Rect(visualDetectionCard.x + 12, visualDetectionCard.y + 74, visualDetectionCard.w - 24, 24);
+        distanceBlackeningToggleRect = new Rect(visualAppearanceCard.x + 16, visualAppearanceCard.y + 76, 190, 24);
         thicknessTrackRect = new Rect(visualAppearanceCard.x + 16, visualAppearanceCard.y + 54, 190, 16);
         svRect = new Rect(visualAppearanceCard.x + 16, visualAppearanceCard.y + 98, 184, 120);
         hueRect = new Rect(visualAppearanceCard.x + 210, visualAppearanceCard.y + 98, 14, 120);
