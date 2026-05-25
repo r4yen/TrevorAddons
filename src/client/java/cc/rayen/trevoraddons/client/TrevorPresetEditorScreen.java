@@ -192,6 +192,10 @@ public class TrevorPresetEditorScreen extends Screen {
                 }
                 for (TreeRow row : treeRows) {
                     if (!row.rect.contains(mouseX, mouseY)) continue;
+                    if (row.useRect.contains(mouseX, mouseY) && row.canUse) {
+                        handleRowUse(row);
+                        return true;
+                    }
                     if (row.addRect.contains(mouseX, mouseY) && row.canAdd) {
                         handleRowPlus(row);
                         return true;
@@ -238,6 +242,10 @@ public class TrevorPresetEditorScreen extends Screen {
 
             for (TreeRow row : treeRows) {
                 if (!row.rect.contains(mouseX, mouseY)) continue;
+                if (row.useRect.contains(mouseX, mouseY) && row.canUse) {
+                    handleRowUse(row);
+                    return true;
+                }
                 if (row.addRect.contains(mouseX, mouseY) && row.canAdd) {
                     handleRowPlus(row);
                     return true;
@@ -568,7 +576,8 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(row.rect.x, row.rect.y + row.rect.h - 1, row.rect.x + row.rect.w, row.rect.y + row.rect.h, 0xFF10151B);
 
         row.addRect = row.canAdd ? new Rect(row.rect.x + row.rect.w - 22, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
-        row.deleteRect = row.canDelete ? new Rect(row.rect.x + row.rect.w - 44, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
+        row.useRect = row.kind == TreeKind.PRESET ? new Rect(row.rect.x + row.rect.w - 44, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
+        row.deleteRect = row.canDelete ? new Rect(row.rect.x + row.rect.w - 66, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
         int titleX = row.rect.x + 26;
         int titleW = row.rect.w - 54;
         if (row.kind == TreeKind.LIFE) {
@@ -583,7 +592,10 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
         }
         if (row.addRect.w > 0 && row.addRect.h > 0) {
-            drawGreenSymbolButton(context, row.addRect, "+", true, mouseX, mouseY);
+            drawFlatSymbolButton(context, row.addRect, "+", true, mouseX, mouseY, 0xFF2E7D3B, 0xFF1E4F28);
+        }
+        if (row.useRect.w > 0 && row.useRect.h > 0) {
+            drawFlatSymbolButton(context, row.useRect, "\u2713", row.canUse, mouseX, mouseY, 0xFF2F6FA8, 0xFF214B70);
         }
         if (row.deleteRect.w > 0 && row.deleteRect.h > 0) {
             drawTrashButton(context, row.deleteRect, mouseX, mouseY);
@@ -618,19 +630,19 @@ public class TrevorPresetEditorScreen extends Screen {
             placeholder = "Type a value or *";
         }
 
-        context.drawText(mc().textRenderer, Text.literal(label), footerX + 12, footerY + 9, 0xFFD5DBE5, false);
+        context.drawText(mc().textRenderer, Text.literal(label), footerX + 12, footerY + 6, 0xFFD5DBE5, false);
 
         int saveW = 68;
         int saveH = 18;
-        saveRect = editable ? new Rect(footerX + footerW - saveW - 12, footerY + 15, saveW, saveH) : Rect.empty();
+        saveRect = editable ? new Rect(footerX + footerW - saveW - 12, footerY + 2, saveW, saveH) : Rect.empty();
         int editorX = footerX + 98;
         int editorW = editable ? footerW - 122 - saveW : footerW - 110;
         editorW = Math.max(64, editorW);
-        Rect editorRect = new Rect(editorX, footerY + 8, editorW, 22);
+        Rect editorRect = new Rect(editorX, footerY + 2, editorW, 18);
         boolean editorFocused = presetNameFocused || mobTypeFocused || inputFocused;
         boolean editorHover = editorRect.contains(mouseX, mouseY);
         context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, editable && (editorFocused || editorHover) ? 0xFF2D3745 : 0xFF222A34);
-        context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 7, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
 
         inputRect = editable ? editorRect : Rect.empty();
         mobTypeRect = editable ? editorRect : Rect.empty();
@@ -723,10 +735,12 @@ public class TrevorPresetEditorScreen extends Screen {
         drawSmallButton(context, rect, symbol, mouseX, mouseY, visibleHover, visibleBase);
     }
 
-    private void drawGreenSymbolButton(DrawContext context, Rect rect, String symbol, boolean enabled, int mouseX, int mouseY) {
-        int visibleHover = enabled ? 0xFF2E7D3B : 0xFF245B2E;
-        int visibleBase = enabled ? 0xFF1E4F28 : 0xFF183D1F;
-        drawSmallButton(context, rect, symbol, mouseX, mouseY, visibleHover, visibleBase);
+    private void drawFlatSymbolButton(DrawContext context, Rect rect, String symbol, boolean enabled, int mouseX, int mouseY, int hoverColor, int baseColor) {
+        int visibleHover = enabled ? hoverColor : scaleRgb(hoverColor, 0.82f);
+        int visibleBase = enabled ? baseColor : scaleRgb(baseColor, 0.82f);
+        boolean hover = rect.contains(mouseX, mouseY);
+        context.fill(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, hover ? visibleHover : visibleBase);
+        context.drawCenteredTextWithShadow(mc().textRenderer, Text.literal(symbol), rect.x + rect.w / 2, rect.y + 4, 0xFFFFFFFF);
     }
 
     private void drawTrashButton(DrawContext context, Rect rect, int mouseX, int mouseY) {
@@ -1094,6 +1108,17 @@ public class TrevorPresetEditorScreen extends Screen {
     private void handleRowDelete(TreeRow row) {
         selectRow(row);
         deleteSelection();
+    }
+
+    private void handleRowUse(TreeRow row) {
+        if (row.kind != TreeKind.PRESET) {
+            return;
+        }
+        selectRow(row);
+        TrevorAddonsClient.CONFIG.setActivePreset(selectedPresetId);
+        TrevorAddonsClient.CONFIG.save();
+        markConfigDirty();
+        statusMessage = "Active preset updated.";
     }
 
     private void syncSelectionToConfig() {
@@ -1543,6 +1568,7 @@ public class TrevorPresetEditorScreen extends Screen {
         private boolean wildcard;
         private Rect rect = Rect.empty();
         private Rect addRect = Rect.empty();
+        private Rect useRect = Rect.empty();
         private Rect deleteRect = Rect.empty();
 
         private TreeRow(TreeKind kind, int presetIndex, int entityIndex, int lifeIndex, int x, int y, int w, int h) {
