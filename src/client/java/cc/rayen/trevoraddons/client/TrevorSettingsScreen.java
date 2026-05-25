@@ -101,7 +101,6 @@ public class TrevorSettingsScreen extends Screen {
             context.drawText(this.textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
         }
 
-        drawButton(context, closeRect, "Close", mouseX, mouseY, accentMuted, accentDark);
         super.render(context, mouseX, mouseY, deltaTicks);
     }
 
@@ -128,11 +127,6 @@ public class TrevorSettingsScreen extends Screen {
             statusMessage = "";
             return true;
         }
-        if (closeRect.contains(mouseX, mouseY)) {
-            close();
-            return true;
-        }
-
         if (page == Page.VISUALS) {
             return handleVisualsClick(mouseX, mouseY);
         }

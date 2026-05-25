@@ -32,7 +32,7 @@ public class TrevorPresetEditorScreen extends Screen {
             "minecraft:chicken"
     };
     private static final String[] ENTITY_LABELS = {
-            "Horse Family",
+            "Horse",
             "Cow",
             "Pig",
             "Sheep",
@@ -63,6 +63,7 @@ public class TrevorPresetEditorScreen extends Screen {
     private Rect visualsToggleRect = Rect.empty();
     private Rect presetsToggleRect = Rect.empty();
     private Rect inputRect = Rect.empty();
+    private Rect saveRect = Rect.empty();
     private Rect mobTypeRect = Rect.empty();
     private Rect addRect = Rect.empty();
     private Rect deleteRect = Rect.empty();
@@ -165,9 +166,6 @@ public class TrevorPresetEditorScreen extends Screen {
             context.drawText(mc().textRenderer, Text.literal(trim(statusMessage, WINDOW_W - 32)), panelLeft + 16, panelBottom - 18, 0xFFE4EAF2, false);
         }
 
-        if (!embedded) {
-            drawActionButton(context, closeRect, "Close", mouseX, mouseY, accentMuted, accentDark);
-        }
         super.render(context, mouseX, mouseY, deltaTicks);
     }
 
@@ -178,8 +176,8 @@ public class TrevorPresetEditorScreen extends Screen {
         double mouseX = click.x();
         double mouseY = click.y();
 
-        if (!embedded && closeRect.contains(mouseX, mouseY)) {
-            close();
+        if (saveRect.contains(mouseX, mouseY)) {
+            commitActiveEdit();
             return true;
         }
         if (embedded) {
@@ -188,24 +186,8 @@ public class TrevorPresetEditorScreen extends Screen {
                 return true;
             }
             if (presetsExpanded) {
-                if (mobTypeRect.contains(mouseX, mouseY)) {
-                    mobTypeFocused = true;
-                    inputFocused = false;
-                    presetNameFocused = false;
-                    return true;
-                }
                 if (inputRect.contains(mouseX, mouseY)) {
-                    inputFocused = true;
-                    mobTypeFocused = false;
-                    presetNameFocused = false;
-                    return true;
-                }
-                if (addRect.contains(mouseX, mouseY)) {
-                    applyInput(true);
-                    return true;
-                }
-                if (deleteRect.contains(mouseX, mouseY)) {
-                    deleteSelection();
+                    beginFooterEdit();
                     return true;
                 }
                 for (TreeRow row : treeRows) {
@@ -225,9 +207,6 @@ public class TrevorPresetEditorScreen extends Screen {
                         return true;
                     }
                     selectRow(row);
-                    inputFocused = false;
-                    mobTypeFocused = false;
-                    presetNameFocused = false;
                     return true;
                 }
             }
@@ -240,7 +219,6 @@ public class TrevorPresetEditorScreen extends Screen {
         }
         if (presetsToggleRect.contains(mouseX, mouseY)) {
             presetsExpanded = !presetsExpanded;
-            inputFocused = false;
             return true;
         }
         if (presetsAddRect.contains(mouseX, mouseY)) {
@@ -253,22 +231,8 @@ public class TrevorPresetEditorScreen extends Screen {
         }
 
         if (presetsExpanded) {
-            if (mobTypeRect.contains(mouseX, mouseY)) {
-                mobTypeFocused = true;
-                inputFocused = false;
-                return true;
-            }
             if (inputRect.contains(mouseX, mouseY)) {
-                inputFocused = true;
-                mobTypeFocused = false;
-                return true;
-            }
-            if (addRect.contains(mouseX, mouseY)) {
-                applyInput(true);
-                return true;
-            }
-            if (deleteRect.contains(mouseX, mouseY)) {
-                deleteSelection();
+                beginFooterEdit();
                 return true;
             }
 
@@ -289,16 +253,10 @@ public class TrevorPresetEditorScreen extends Screen {
                     return true;
                 }
                 selectRow(row);
-                inputFocused = false;
-                mobTypeFocused = false;
-                presetNameFocused = false;
                 return true;
             }
         }
 
-        inputFocused = false;
-        mobTypeFocused = false;
-        presetNameFocused = false;
         return super.mouseClicked(click, doubleClick);
     }
 
@@ -348,51 +306,29 @@ public class TrevorPresetEditorScreen extends Screen {
             close();
             return true;
         }
-        if (presetsExpanded && presetNameFocused) {
+        if (presetsExpanded && (presetNameFocused || mobTypeFocused || inputFocused)) {
             if (input.getKeycode() == 257 || input.getKeycode() == 335) {
-                applyPresetName();
+                commitActiveEdit();
                 return true;
             }
             if (input.getKeycode() == 259) {
-                if (!presetNameInput.isEmpty()) {
+                if (presetNameFocused && !presetNameInput.isEmpty()) {
                     presetNameInput = presetNameInput.substring(0, presetNameInput.length() - 1);
+                    return true;
                 }
-                return true;
-            }
-            if (input.getKeycode() == 261) {
-                presetNameInput = "";
-                return true;
-            }
-        }
-        if (presetsExpanded && mobTypeFocused) {
-            if (input.getKeycode() == 257 || input.getKeycode() == 335) {
-                applyMobType();
-                return true;
-            }
-            if (input.getKeycode() == 259) {
-                if (!mobTypeInput.isEmpty()) {
+                if (mobTypeFocused && !mobTypeInput.isEmpty()) {
                     mobTypeInput = mobTypeInput.substring(0, mobTypeInput.length() - 1);
+                    return true;
                 }
-                return true;
-            }
-            if (input.getKeycode() == 261) {
-                mobTypeInput = "";
-                return true;
-            }
-        }
-        if (presetsExpanded && inputFocused) {
-            if (input.getKeycode() == 257 || input.getKeycode() == 335) {
-                applyInput(false);
-                return true;
-            }
-            if (input.getKeycode() == 259) {
-                if (!inputText.isEmpty()) {
+                if (inputFocused && !inputText.isEmpty()) {
                     inputText = inputText.substring(0, inputText.length() - 1);
+                    return true;
                 }
-                return true;
             }
             if (input.getKeycode() == 261) {
-                inputText = "";
+                if (presetNameFocused) presetNameInput = "";
+                if (mobTypeFocused) mobTypeInput = "";
+                if (inputFocused) inputText = "";
                 return true;
             }
         }
@@ -479,6 +415,46 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(svRect.x + svRect.w + 25, svRect.y + 25, svRect.x + svRect.w + 95, svRect.y + 47, 0xFF000000 | (TrevorAddonsClient.CONFIG.tracerLineColor & 0xFFFFFF));
     }
 
+    private void beginFooterEdit() {
+        if (selectionKind == SelectionKind.PRESET) {
+            if (selectedPreset() != null && selectedPreset().editable) {
+                presetNameFocused = true;
+                mobTypeFocused = false;
+                inputFocused = false;
+            }
+            return;
+        }
+        if (selectionKind == SelectionKind.ENTITY) {
+            if (selectedPreset() != null && selectedPreset().editable) {
+                mobTypeFocused = true;
+                presetNameFocused = false;
+                inputFocused = false;
+            }
+            return;
+        }
+        if (selectionKind == SelectionKind.LIFE) {
+            if (selectedPreset() != null && selectedPreset().editable) {
+                inputFocused = true;
+                presetNameFocused = false;
+                mobTypeFocused = false;
+            }
+        }
+    }
+
+    private void commitActiveEdit() {
+        if (presetNameFocused) {
+            applyPresetName();
+        } else if (mobTypeFocused) {
+            applyMobType();
+        } else if (inputFocused) {
+            applyInput(false);
+        }
+        presetNameFocused = false;
+        mobTypeFocused = false;
+        inputFocused = false;
+        syncInputFromSelection();
+    }
+
     private void drawPresetsTree(DrawContext context, int mouseX, int mouseY, int accentColor) {
         treeRows.clear();
 
@@ -495,7 +471,7 @@ public class TrevorPresetEditorScreen extends Screen {
                 boolean presetExpanded = isExpandedPreset(preset.id);
                 TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 26);
                 presetRow.title = preset.name;
-                presetRow.subtitle = preset.id.equals(TrevorConfig.DEFAULT_PRESET_ID) ? "Default preset" : "Custom preset";
+                presetRow.subtitle = "";
                 presetRow.expanded = presetExpanded;
                 presetRow.selected = selectionKind == SelectionKind.PRESET && preset.id.equals(selectedPresetId);
                 presetRow.active = preset.id.equals(TrevorAddonsClient.CONFIG.activePresetId);
@@ -516,8 +492,8 @@ public class TrevorPresetEditorScreen extends Screen {
                     TrevorConfig.EntityRule rule = preset.entities.get(entityIndex);
                     boolean entityExpanded = isExpandedEntity(preset.id, entityIndex);
                     TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 34, y, bodyW - 34, 24);
-                    entityRow.title = "Mob " + (entityIndex + 1);
-                    entityRow.subtitle = rule.name;
+                    entityRow.title = "Mob " + (entityIndex + 1) + ": " + rule.name;
+                    entityRow.subtitle = "";
                     entityRow.expanded = entityExpanded;
                     entityRow.selected = selectionKind == SelectionKind.ENTITY && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex;
                     entityRow.editable = preset.editable;
@@ -534,7 +510,7 @@ public class TrevorPresetEditorScreen extends Screen {
 
                     if (rule.matchesAnyHealth) {
                         TreeRow wildcardRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, -1, bodyX + 52, y, bodyW - 52, 20);
-                        wildcardRow.title = "All";
+                        wildcardRow.title = "❤ All";
                         wildcardRow.subtitle = "";
                         wildcardRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == -1;
                         wildcardRow.editable = preset.editable;
@@ -549,7 +525,7 @@ public class TrevorPresetEditorScreen extends Screen {
                     List<Double> lives = rule.healthValues;
                     for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
                         TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
-                        lifeRow.title = formatLife(lives.get(lifeIndex));
+                        lifeRow.title = "❤ " + formatLife(lives.get(lifeIndex));
                         lifeRow.subtitle = "";
                         lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
                         lifeRow.editable = preset.editable;
@@ -591,38 +567,20 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(row.rect.x, row.rect.y, row.rect.x + row.rect.w, row.rect.y + 1, 0xFF10151B);
         context.fill(row.rect.x, row.rect.y + row.rect.h - 1, row.rect.x + row.rect.w, row.rect.y + row.rect.h, 0xFF10151B);
 
-        row.addRect = new Rect(row.rect.x + row.rect.w - 20, row.rect.y + 3, 16, row.rect.h - 6);
-        row.deleteRect = new Rect(row.rect.x + row.rect.w - 40, row.rect.y + 3, 16, row.rect.h - 6);
+        row.addRect = row.canAdd ? new Rect(row.rect.x + row.rect.w - 22, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
+        row.deleteRect = row.canDelete ? new Rect(row.rect.x + row.rect.w - 44, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
 
-        int titleX = row.rect.x + 28;
-        int titleW = row.rect.w - 66;
-        if (row.kind == TreeKind.LIFE) {
-            context.drawText(mc().textRenderer, Text.literal("❤"), row.rect.x + 28, row.rect.y + 4, 0xFFE35757, false);
-            if (row.selected && inputFocused) {
-                drawInlineEditor(context, row.rect.x + 40, row.rect.y + 3, row.rect.w - 126, inputText, true, mouseX, mouseY);
-            } else {
-                context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW - 14)), row.rect.x + 40, row.rect.y + 6, 0xFFEAF0F7, false);
-            }
-        } else if (row.kind == TreeKind.ENTITY) {
-            if (row.selected && mobTypeFocused) {
-                drawInlineEditor(context, row.rect.x + 28, row.rect.y + 3, row.rect.w - 126, mobTypeInput, false, mouseX, mouseY);
-            } else {
-                context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
-                if (!row.subtitle.isEmpty()) {
-                    context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
-                }
-            }
-        } else {
-            context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
-        }
-        if (row.kind == TreeKind.PRESET && !row.subtitle.isEmpty()) {
-            context.drawText(mc().textRenderer, Text.literal(trim(row.subtitle, titleW)), titleX, row.rect.y + 15, 0xFF9AA3AF, false);
-        }
+        int titleX = row.rect.x + 26;
+        int titleW = row.rect.w - 54;
+        int titleColor = row.kind == TreeKind.LIFE ? 0xFFF2D4D4 : 0xFFEAF0F7;
+        context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, titleColor, false);
 
-        if (row.kind != TreeKind.LIFE && row.canAdd) {
+        if (row.addRect.w > 0 && row.addRect.h > 0) {
             drawSquareSymbolButton(context, row.addRect, "+", true, mouseX, mouseY, 0xFF324153, 0xFF222A34);
         }
-        drawSquareSymbolButton(context, row.deleteRect, "-", row.canDelete, mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+        if (row.deleteRect.w > 0 && row.deleteRect.h > 0) {
+            drawTrashButton(context, row.deleteRect, mouseX, mouseY);
+        }
 
         return row.rect.h + 3;
     }
@@ -634,58 +592,45 @@ public class TrevorPresetEditorScreen extends Screen {
 
         context.fill(footerX, footerY, footerX + footerW, footerY + footerRect.h, 0xFF171C24);
         context.fill(footerX, footerY, footerX + footerW, footerY + 1, 0xFF10151B);
-        if (embedded) {
-            addRect = Rect.empty();
-            deleteRect = Rect.empty();
 
-            Rect editorRect = new Rect(footerX + 12, footerY + 16, footerW - 24, 20);
-            String label;
-            String value;
-            boolean focused;
-            if (selectionKind == SelectionKind.PRESET) {
-                label = "Preset name";
-                value = presetNameInput;
-                focused = presetNameFocused || editorRect.contains(mouseX, mouseY);
-            } else if (selectionKind == SelectionKind.ENTITY) {
-                label = "Mob type";
-                value = mobTypeInput;
-                focused = mobTypeFocused || editorRect.contains(mouseX, mouseY);
-            } else {
-                label = "Lives";
-                value = inputText;
-                focused = inputFocused || editorRect.contains(mouseX, mouseY);
-            }
-            context.drawText(mc().textRenderer, Text.literal(label), footerX + 12, footerY + 4, 0xFFD5DBE5, false);
-            context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, focused ? 0xFF2D3745 : 0xFF222A34);
-            String placeholder = selectionKind == SelectionKind.PRESET ? "Enter preset name" : selectionKind == SelectionKind.ENTITY ? "Enter entity id" : "Enter life value";
-            context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
-            mobTypeRect = selectionKind == SelectionKind.ENTITY ? editorRect : Rect.empty();
-            inputRect = selectionKind == SelectionKind.LIFE ? editorRect : Rect.empty();
-            return;
+        String label;
+        String value;
+        String placeholder;
+        boolean editable = selectedPreset() != null && selectedPreset().editable;
+        if (selectionKind == SelectionKind.PRESET) {
+            label = "Preset name";
+            value = presetNameInput;
+            placeholder = "Enter preset name";
+        } else if (selectionKind == SelectionKind.ENTITY) {
+            label = "Mob type";
+            value = mobTypeInput;
+            placeholder = "Enter entity id";
+        } else {
+            label = "Lives";
+            value = inputText;
+            placeholder = "Type a value or *";
         }
 
-        context.drawText(mc().textRenderer, Text.literal("Editor"), footerX + 12, footerY + 8, 0xFFEAF0F7, false);
+        context.drawText(mc().textRenderer, Text.literal(label), footerX + 12, footerY + 9, 0xFFD5DBE5, false);
 
-        String selectedLabel = selectedSelectionLabel();
-        context.drawText(mc().textRenderer, Text.literal(trim(selectedLabel, footerW - 180)), footerX + 12, footerY + 22, 0xFF9AA3AF, false);
+        int saveW = 68;
+        int saveH = 18;
+        saveRect = editable ? new Rect(footerX + footerW - saveW - 12, footerY + 15, saveW, saveH) : Rect.empty();
+        int editorX = footerX + 98;
+        int editorW = editable ? footerW - 122 - saveW : footerW - 110;
+        editorW = Math.max(64, editorW);
+        Rect editorRect = new Rect(editorX, footerY + 8, editorW, 22);
+        boolean editorFocused = presetNameFocused || mobTypeFocused || inputFocused;
+        boolean editorHover = editorRect.contains(mouseX, mouseY);
+        context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, editable && (editorFocused || editorHover) ? 0xFF2D3745 : 0xFF222A34);
+        context.drawText(mc().textRenderer, Text.literal(trim(value.isEmpty() ? placeholder : value, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 7, value.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
 
-        mobTypeRect = new Rect(footerX + 12, footerY + 38, footerW - 92, 20);
-        boolean mobFocused = mobTypeFocused || mobTypeRect.contains(mouseX, mouseY);
-        context.drawText(mc().textRenderer, Text.literal("Mob Type"), footerX + 12, footerY + 34, 0xFFD5DBE5, false);
-        context.fill(mobTypeRect.x, mobTypeRect.y, mobTypeRect.x + mobTypeRect.w, mobTypeRect.y + mobTypeRect.h, mobFocused ? 0xFF2D3745 : 0xFF222A34);
-        context.drawText(mc().textRenderer, Text.literal(trim(mobTypeInput.isEmpty() ? "Enter entity id" : mobTypeInput, mobTypeRect.w - 20)), mobTypeRect.x + 10, mobTypeRect.y + 6, mobTypeInput.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
-        inputRect = new Rect(footerX + 12, footerY + 66, footerW - 24, 20);
-        boolean focused = inputFocused || inputRect.contains(mouseX, mouseY);
-        context.drawText(mc().textRenderer, Text.literal("Lives"), footerX + 12, footerY + 62, 0xFFD5DBE5, false);
-        context.fill(inputRect.x, inputRect.y, inputRect.x + inputRect.w, inputRect.y + inputRect.h, focused ? 0xFF2D3745 : 0xFF222A34);
-        String placeholder = selectionKind == SelectionKind.LIFE ? "Type a value or *" : "Type values separated by commas, or *";
-        context.drawText(mc().textRenderer, Text.literal(trim(inputText.isEmpty() ? placeholder : inputText, inputRect.w - 20)), inputRect.x + 10, inputRect.y + 6, inputText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
+        inputRect = editable ? editorRect : Rect.empty();
+        mobTypeRect = editable ? editorRect : Rect.empty();
 
-        addRect = new Rect(footerX + 12, footerY + 92, 18, 18);
-        deleteRect = new Rect(footerX + 36, footerY + 92, 18, 18);
-
-        drawSquareSymbolButton(context, addRect, "+", true, mouseX, mouseY, accentMuted, accentDark);
-        drawSquareSymbolButton(context, deleteRect, "-", true, mouseX, mouseY, 0xFF5F2D36, 0xFF3A2229);
+        if (editable) {
+            drawSmallButton(context, saveRect, "Save", mouseX, mouseY, accentMuted, accentDark);
+        }
     }
 
     private void drawSectionHeader(DrawContext context, Rect rect, String label, boolean expanded, int mouseX, int mouseY, int accentColor) {
@@ -779,17 +724,6 @@ public class TrevorPresetEditorScreen extends Screen {
         context.fill(rect.x + 7, rect.y + 8, rect.x + 8, rect.y + rect.h - 5, 0xFF5F2D36);
         context.fill(rect.x + 10, rect.y + 8, rect.x + 11, rect.y + rect.h - 5, 0xFF5F2D36);
         context.fill(rect.x + 13, rect.y + 8, rect.x + 14, rect.y + rect.h - 5, 0xFF5F2D36);
-    }
-
-    private void drawInlineEditor(DrawContext context, int x, int y, int width, String valueText, boolean lifeValue, int mouseX, int mouseY) {
-        Rect editorRect = new Rect(x, y, Math.max(64, width), 18);
-        boolean hover = editorRect.contains(mouseX, mouseY);
-        boolean focused = lifeValue ? inputFocused : mobTypeFocused;
-        context.fill(editorRect.x, editorRect.y, editorRect.x + editorRect.w, editorRect.y + editorRect.h, focused || hover ? 0xFF2D3745 : 0xFF222A34);
-        String text = valueText == null || valueText.isEmpty()
-                ? (lifeValue ? "Type a value" : "Enter entity id")
-                : valueText;
-        context.drawText(mc().textRenderer, Text.literal(trim(text, editorRect.w - 12)), editorRect.x + 6, editorRect.y + 5, valueText == null || valueText.isEmpty() ? 0xFF758197 : 0xFFEAF0F7, false);
     }
 
     private void drawChip(DrawContext context, Rect rect, String label, int fill) {
@@ -1110,9 +1044,6 @@ public class TrevorPresetEditorScreen extends Screen {
             selectedEntityIndex = row.entityIndex;
             selectedLifeIndex = row.lifeIndex;
         }
-        mobTypeFocused = row.kind == TreeKind.ENTITY;
-        inputFocused = row.kind == TreeKind.LIFE;
-        presetNameFocused = row.kind == TreeKind.PRESET;
         syncInputFromSelection();
     }
 
@@ -1623,4 +1554,5 @@ public class TrevorPresetEditorScreen extends Screen {
         }
     }
 }
+
 

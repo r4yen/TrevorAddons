@@ -21,10 +21,11 @@ public final class TrevorConfig {
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("trevoraddons.json");
 
     public static final String DEFAULT_PRESET_ID = "default";
-    public static final String HORSE_FAMILY_KEY = "trevoraddons:horse_family";
+    public static final String HORSE_FAMILY_KEY = "minecraft:horse";
+    public static final String LEGACY_HORSE_FAMILY_KEY = "trevoraddons:horse_family";
 
     private static final List<EntityRule> DEFAULT_ENTITY_RULES = List.of(
-            new EntityRule(HORSE_FAMILY_KEY, "Horse Family", List.of(1024.0)),
+            new EntityRule(HORSE_FAMILY_KEY, "Horse *", List.of(1024.0)),
             new EntityRule("minecraft:cow", "Cow", List.of(100.0, 500.0, 1000.0, 5000.0, 10000.0)),
             new EntityRule("minecraft:pig", "Pig", List.of(100.0, 500.0, 1000.0, 5000.0, 10000.0)),
             new EntityRule("minecraft:sheep", "Sheep", List.of(100.0, 500.0, 1000.0, 5000.0, 10000.0)),
@@ -243,8 +244,8 @@ public final class TrevorConfig {
     }
 
     private static String displayNameForKey(String key) {
-        if (HORSE_FAMILY_KEY.equals(key)) {
-            return "Horse Family";
+        if (HORSE_FAMILY_KEY.equals(key) || LEGACY_HORSE_FAMILY_KEY.equals(key)) {
+            return "Horse *";
         }
         Identifier id = Identifier.tryParse(key);
         if (id == null) {
@@ -269,7 +270,7 @@ public final class TrevorConfig {
     }
 
     private static boolean matchesRule(Entity entity, String key, double maxHealth) {
-        if (HORSE_FAMILY_KEY.equals(key)) {
+        if (HORSE_FAMILY_KEY.equals(key) || LEGACY_HORSE_FAMILY_KEY.equals(key)) {
             return entity instanceof AbstractHorseEntity;
         }
 
@@ -347,6 +348,9 @@ public final class TrevorConfig {
         public void normalize() {
             if (id == null || id.isBlank()) {
                 id = "unknown";
+            }
+            if (LEGACY_HORSE_FAMILY_KEY.equals(id)) {
+                id = HORSE_FAMILY_KEY;
             }
             if (name == null || name.isBlank()) {
                 name = displayNameForKey(id);
