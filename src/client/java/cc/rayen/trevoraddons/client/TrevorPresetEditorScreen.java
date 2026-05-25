@@ -469,7 +469,7 @@ public class TrevorPresetEditorScreen extends Screen {
             for (int presetIndex = 0; presetIndex < presets.size(); presetIndex++) {
                 TrevorConfig.Preset preset = presets.get(presetIndex);
                 boolean presetExpanded = isExpandedPreset(preset.id);
-                TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 26);
+                TreeRow presetRow = new TreeRow(TreeKind.PRESET, presetIndex, -1, -1, bodyX + 14, y, bodyW - 14, 24);
                 presetRow.title = preset.name;
                 presetRow.subtitle = "";
                 presetRow.expanded = presetExpanded;
@@ -492,7 +492,7 @@ public class TrevorPresetEditorScreen extends Screen {
                     TrevorConfig.EntityRule rule = preset.entities.get(entityIndex);
                     boolean entityExpanded = isExpandedEntity(preset.id, entityIndex);
                     TreeRow entityRow = new TreeRow(TreeKind.ENTITY, presetIndex, entityIndex, -1, bodyX + 34, y, bodyW - 34, 24);
-                    entityRow.title = "Mob " + (entityIndex + 1) + ": " + rule.name;
+                    entityRow.title = rule.id;
                     entityRow.subtitle = "";
                     entityRow.expanded = entityExpanded;
                     entityRow.selected = selectionKind == SelectionKind.ENTITY && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex;
@@ -509,8 +509,8 @@ public class TrevorPresetEditorScreen extends Screen {
                     }
 
                     if (rule.matchesAnyHealth) {
-                        TreeRow wildcardRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, -1, bodyX + 52, y, bodyW - 52, 20);
-                        wildcardRow.title = "❤ All";
+                        TreeRow wildcardRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, -1, bodyX + 52, y, bodyW - 52, 24);
+                        wildcardRow.title = "\u2764 All";
                         wildcardRow.subtitle = "";
                         wildcardRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == -1;
                         wildcardRow.editable = preset.editable;
@@ -524,8 +524,8 @@ public class TrevorPresetEditorScreen extends Screen {
 
                     List<Double> lives = rule.healthValues;
                     for (int lifeIndex = 0; lifeIndex < lives.size(); lifeIndex++) {
-                        TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 20);
-                        lifeRow.title = "❤ " + formatLife(lives.get(lifeIndex));
+                        TreeRow lifeRow = new TreeRow(TreeKind.LIFE, presetIndex, entityIndex, lifeIndex, bodyX + 52, y, bodyW - 52, 24);
+                        lifeRow.title = "\u2764 " + formatLife(lives.get(lifeIndex));
                         lifeRow.subtitle = "";
                         lifeRow.selected = selectionKind == SelectionKind.LIFE && selectedPresetId.equals(preset.id) && selectedEntityIndex == entityIndex && selectedLifeIndex == lifeIndex;
                         lifeRow.editable = preset.editable;
@@ -569,14 +569,21 @@ public class TrevorPresetEditorScreen extends Screen {
 
         row.addRect = row.canAdd ? new Rect(row.rect.x + row.rect.w - 22, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
         row.deleteRect = row.canDelete ? new Rect(row.rect.x + row.rect.w - 44, row.rect.y + 4, 18, row.rect.h - 8) : Rect.empty();
-
         int titleX = row.rect.x + 26;
         int titleW = row.rect.w - 54;
-        int titleColor = row.kind == TreeKind.LIFE ? 0xFFF2D4D4 : 0xFFEAF0F7;
-        context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, titleColor, false);
-
+        if (row.kind == TreeKind.LIFE) {
+            String title = row.title == null ? "" : row.title;
+            if (title.startsWith("\u2764 ")) {
+                context.drawText(mc().textRenderer, Text.literal("\u2764"), titleX, row.rect.y + 6, 0xFFE35757, false);
+                context.drawText(mc().textRenderer, Text.literal(trim(title.substring(2), titleW - 14)), titleX + 12, row.rect.y + 6, 0xFFEAF0F7, false);
+            } else {
+                context.drawText(mc().textRenderer, Text.literal(trim(title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+            }
+        } else {
+            context.drawText(mc().textRenderer, Text.literal(trim(row.title, titleW)), titleX, row.rect.y + 6, 0xFFEAF0F7, false);
+        }
         if (row.addRect.w > 0 && row.addRect.h > 0) {
-            drawSquareSymbolButton(context, row.addRect, "+", true, mouseX, mouseY, 0xFF324153, 0xFF222A34);
+            drawGreenSymbolButton(context, row.addRect, "+", true, mouseX, mouseY);
         }
         if (row.deleteRect.w > 0 && row.deleteRect.h > 0) {
             drawTrashButton(context, row.deleteRect, mouseX, mouseY);
@@ -713,6 +720,12 @@ public class TrevorPresetEditorScreen extends Screen {
     private void drawSquareSymbolButton(DrawContext context, Rect rect, String symbol, boolean enabled, int mouseX, int mouseY, int hoverColor, int baseColor) {
         int visibleHover = enabled ? hoverColor : scaleRgb(hoverColor, 0.82f);
         int visibleBase = enabled ? baseColor : scaleRgb(baseColor, 0.82f);
+        drawSmallButton(context, rect, symbol, mouseX, mouseY, visibleHover, visibleBase);
+    }
+
+    private void drawGreenSymbolButton(DrawContext context, Rect rect, String symbol, boolean enabled, int mouseX, int mouseY) {
+        int visibleHover = enabled ? 0xFF2E7D3B : 0xFF245B2E;
+        int visibleBase = enabled ? 0xFF1E4F28 : 0xFF183D1F;
         drawSmallButton(context, rect, symbol, mouseX, mouseY, visibleHover, visibleBase);
     }
 
